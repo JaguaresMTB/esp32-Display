@@ -11,12 +11,24 @@ WeatherScreen::WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetS
 {
 }
 
-void WeatherScreen::renderLoading()
+void WeatherScreen::renderLoading(bool offline)
 {
   _display.clear();
-  drawHeader(label("Weather", "Clima"), display::Color::Blue);
-  _display.drawText(label("Updating...", "Actualizando..."), _display.width() / 2, 180,
-                    display::TextSize::Large);
+
+  if (offline)
+  {
+    drawHeader(label("Weather", "Clima"), display::Color::Yellow);
+    _display.drawText(label("No connection", "Sin conexion"), _display.width() / 2, 180,
+                      display::TextSize::Large);
+    _display.drawText(label("Wi-Fi unavailable", "Wi-Fi no disponible"), _display.width() / 2, 210,
+                      display::TextSize::Small);
+  }
+  else
+  {
+    drawHeader(label("Weather", "Clima"), display::Color::Blue);
+    _display.drawText(label("Updating...", "Actualizando..."), _display.width() / 2, 180,
+                      display::TextSize::Large);
+  }
 
   _hasData = false;
   _loading = true;

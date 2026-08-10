@@ -50,8 +50,9 @@ bool Application::begin()
   _network.begin();
   _weather.begin();
 
-  _weatherScreen.renderLoading();
+  _weatherScreen.renderLoading(false);
   _lastUiState = UiState::Loading;
+  _lastLoadingOffline = false;
 
   return true;
 }
@@ -117,9 +118,12 @@ void Application::fetchWeather()
   else
   {
     _lastWeatherOk = false;
-    _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs;
+    // Retry faster while we still have no data to show; once data exists,
+    // fall back to the longer failure cadence.
+    unsigned long retry = _hasWeatherData ? kWeatherRetryIntervalMs : kInitialRetryIntervalMs;
+    _nextWeatherRefreshAt = millis() + retry;
     logging::info("WEATHER", "request failed: %s (next in %lu s)",
-                  weather::weatherErrorName(result), kWeatherRetryIntervalMs / 1000);
+                  weather::weatherErrorName(result), retry / 1000);
   }
 }
 
@@ -141,6 +145,7 @@ void Application::logWeather(const weather::WeatherData& data) const
 void Application::renderWeatherState()
 {
   const bool connected = _network.isConnected();
+  const bool offline = _network.state() == networking::State::Disconnected;
 
   UiState target;
   if (!_hasWeatherData)
@@ -161,7 +166,14 @@ void Application::renderWeatherState()
   }
 
   const unsigned long stamp = _hasWeatherData ? _weatherData.timestamp : 0;
-  if (target != _lastUiState || stamp != _lastRenderedStamp)
+  bool shouldRedraw = (target != _lastUiState || stamp != _lastRenderedStamp);
+  if (target == UiState::Loading && offline != _lastLoadingOffline)
+  {
+    _lastLoadingOffline = offline;
+    shouldRedraw = true;
+  }
+
+  if (shouldRedraw)
   {
     _lastUiState = target;
     _lastRenderedStamp = stamp;
@@ -169,7 +181,7 @@ void Application::renderWeatherState()
     switch (target)
     {
       case UiState::Loading:
-        _weatherScreen.renderLoading();
+        _weatherScreen.renderLoading(offline);
         break;
       case UiState::Ready:
         _weatherScreen.render(_weatherData);

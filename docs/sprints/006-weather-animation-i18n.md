@@ -73,6 +73,16 @@ During the session, OpenWeather requests intermittently failed with `start_ssl_c
 - None.
 - Note: built-in fonts are ASCII-only, so Spanish labels use unaccented ASCII (`Direccion`, `Actualizacion`).
 
+## Follow-up fix (loading-screen feedback + first-retry speed)
+
+After the sprint, the device appeared "stuck" on the loading screen when the mesh AP's internet was down (repeated DNS/TLS failures). Root cause: the loading screen gave no feedback and the first fetch only retried every 5 minutes.
+
+Fixes (in `application` + `weather_screen`):
+- `renderLoading(bool offline)` — shows `Sin conexion / Wi-Fi no disponible` (yellow header) when Wi-Fi is unavailable, `Actualizando...` otherwise. Re-renders when connectivity changes.
+- `kInitialRetryIntervalMs = 30 s` — while no weather data exists, failed fetches retry every 30 s (so the device recovers quickly once the network returns); after data exists, the 5-min failure cadence applies.
+
+Verified on-device: with the AP's internet restored, the device recovered and displayed weather within the faster retry window.
+
 ## Recommended next steps
 
 - Sprint 7 candidates: NVS persistence of last-known weather, forecast/extra fields, or TLS certificate hardening.
