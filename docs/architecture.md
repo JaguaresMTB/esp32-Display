@@ -187,7 +187,7 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 
 | Method | Purpose |
 |--------|---------|
-| `renderLoading()` | No data yet — `Weather / Updating...` (no stale values) |
+| `renderLoading(bool offline)` | No data yet — `Actualizando...` (blue) or `Sin conexion` (yellow, when Wi-Fi down) |
 | `render(const WeatherData&)` | Full weather screen (success) |
 | `renderOffline(const WeatherData&)` | Last valid data kept + `Wi-Fi offline` + last update time |
 | `renderUpdateFailed(const WeatherData&)` | Last valid data kept + `Update failed` + last update time |
@@ -242,9 +242,10 @@ No LovyanGFX types are exposed through the UI layer.
 - **WeatherData caching** — `_weatherData` + `_hasWeatherData`. The cache is replaced **only** after a successful request (`WeatherError::Ok`); failures keep the last valid data (RAM-only; lost on reboot).
 - **Refresh scheduling** — elapsed-time based, never `delay()`:
   - `kWeatherRefreshIntervalMs = 15 min` after a successful request.
-  - `kWeatherRetryIntervalMs = 5 min` after a failed request (bounded, no tight loop).
+  - `kWeatherRetryIntervalMs = 5 min` after a failed request once data exists.
+  - `kInitialRetryIntervalMs = 30 s` after a failed request while **no data** exists yet (fast recovery after a network outage).
   - Serial command `w` forces an immediate refresh; `r` re-runs the display diagnostic.
-- **State selection** — `Loading` (no data), `Ready` (data + connected + last fetch ok), `Offline` (data + not connected), `UpdateFailed` (data + connected + last fetch failed). The screen is redrawn only when the state or the data timestamp changes.
+- **State selection** — `Loading` (no data; shows `Sin conexion` when Wi-Fi is in the `Disconnected` state), `Ready` (data + connected + last fetch ok), `Offline` (data + not connected), `UpdateFailed` (data + connected + last fetch failed). The screen is redrawn when the state, the data timestamp, or the loading offline flag changes.
 - **Animation** — `_weatherScreen.updateAnimation(millis())` runs every loop iteration; the screen throttles internally (~12 fps).
 
 The main loop stays responsive: Wi-Fi, refresh scheduling, and rendering are all driven from `Application::update()` without blocking loops.
