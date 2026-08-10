@@ -18,21 +18,21 @@ void WeatherScreen::renderConnecting(const char* ssid, int attempt, bool connect
   if (connected)
   {
     drawHeader(label("Weather", "Clima"), display::Color::Blue);
-    _display.drawText(label("Connected", "Conectado"), _display.width() / 2, 172,
-                      display::TextSize::Large);
-    _display.drawText(ip, _display.width() / 2, 202, display::TextSize::Small);
-    _display.drawText(label("Updating weather...", "Actualizando clima..."), _display.width() / 2,
-                      224, display::TextSize::Small);
+    _display.drawText(label("Connected", "Conectado"), _display.width() / 2, 150,
+                      display::TextSize::Medium);
+    _display.drawText(ip, _display.width() / 2, 185, display::TextSize::Medium);
+    _display.drawText(label("Updating weather...", "Actualizando..."), _display.width() / 2, 220,
+                      display::TextSize::Medium);
   }
   else
   {
-    drawHeader(label("Weather", "Clima"), display::Color::Yellow);
-    _display.drawText(label("Connecting...", "Conectando..."), _display.width() / 2, 172,
-                      display::TextSize::Large);
-    _display.drawText(ssid, _display.width() / 2, 202, display::TextSize::Small);
+    drawHeader(label("Weather", "Clima"), display::Color::Orange);
+    _display.drawText(label("Connecting...", "Conectando..."), _display.width() / 2, 150,
+                      display::TextSize::Medium);
+    _display.drawText(ssid, _display.width() / 2, 185, display::TextSize::Medium);
     {
       String attemptText = String(label("Attempt ", "Intento ")) + String(attempt);
-      _display.drawText(attemptText.c_str(), _display.width() / 2, 224, display::TextSize::Small);
+      _display.drawText(attemptText.c_str(), _display.width() / 2, 220, display::TextSize::Medium);
     }
   }
 
@@ -58,7 +58,7 @@ void WeatherScreen::render(const weather::WeatherData& data)
 void WeatherScreen::renderOffline(const weather::WeatherData& data)
 {
   _display.clear();
-  drawHeader(titleCase(data.locationName).c_str(), display::Color::Yellow);
+  drawHeader(titleCase(data.locationName).c_str(), display::Color::Orange);
 
   _hasData = true;
   _loading = false;
@@ -67,7 +67,7 @@ void WeatherScreen::renderOffline(const weather::WeatherData& data)
   drawWeatherBody(data);
   drawFooter(String(label("Wi-Fi offline  |  ", "Wi-Fi sin conexion  |  ")) +
                  formatTime(data.timestamp),
-             display::Color::Yellow);
+             display::Color::Orange);
 }
 
 void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
@@ -128,42 +128,42 @@ WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition)
 void WeatherScreen::drawHeader(const char* title, display::Color barColor)
 {
   _display.fillRect(0, 0, _display.width(), 30, barColor);
-  _display.drawText(title, _display.width() / 2, 15, display::TextSize::Small);
+  _display.drawText(title, _display.width() / 2, 15, display::TextSize::Medium);
 }
 
 void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
 {
   {
     String temp = String(data.temperatureC, 1) + " C";
-    _display.drawText(temp.c_str(), _display.width() / 2, 168, display::TextSize::XLarge);
+    _display.drawText(temp.c_str(), _display.width() / 2, 136, display::TextSize::XLarge);
   }
 
   {
     String feels = String(label("Feels like ", "Sensacion ")) + String(data.feelsLikeC, 1) + " C";
-    _display.drawText(feels.c_str(), _display.width() / 2, 200, display::TextSize::Small);
+    _display.drawText(feels.c_str(), _display.width() / 2, 180, display::TextSize::Medium);
   }
 
-  _display.drawText(titleCase(data.conditionDescription).c_str(), _display.width() / 2, 222,
-                    display::TextSize::Small);
+  _display.drawText(titleCase(data.conditionDescription).c_str(), _display.width() / 2, 208,
+                    display::TextSize::Medium);
 
-  _display.drawLine(16, 240, _display.width() - 16, 240, display::Color::White);
+  _display.drawLine(16, 224, _display.width() - 16, 224, display::Color::White);
 
-  drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 246);
-  drawTextAlignedMetric(label("Wind", "Viento"), String(data.windSpeed, 1) + " m/s", 262);
-  drawTextAlignedMetric(label("Direction", "Direccion"), String(data.windDirection) + " deg", 278);
+  drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 240);
+  drawTextAlignedMetric(label("Wind", "Viento"), String(data.windSpeed, 1) + " m/s", 266);
+  drawTextAlignedMetric(label("Direction", "Direccion"), String(data.windDirection) + " deg", 292);
 }
 
 void WeatherScreen::drawTextAlignedMetric(const char* label, const String& value, int32_t y)
 {
-  _display.drawTextAligned(label, 16, y, display::TextSize::Small, display::TextAlign::Left);
-  _display.drawTextAligned(value.c_str(), _display.width() - 16, y, display::TextSize::Small,
+  _display.drawTextAligned(label, 12, y, display::TextSize::Medium, display::TextAlign::Left);
+  _display.drawTextAligned(value.c_str(), _display.width() - 12, y, display::TextSize::Medium,
                            display::TextAlign::Right);
 }
 
 void WeatherScreen::drawFooter(const String& text, display::Color barColor)
 {
   (void)barColor;
-  _display.drawText(text.c_str(), _display.width() / 2, 306, display::TextSize::Small);
+  _display.drawText(text.c_str(), _display.width() / 2, 312, display::TextSize::Small);
 }
 
 const char* WeatherScreen::label(const char* en, const char* es) const
@@ -195,17 +195,17 @@ void WeatherScreen::drawSun(unsigned long now)
   int32_t cx = _display.width() / 2;
   int32_t cy = kZoneY + kZoneH / 2;
 
-  _display.fillCircle(cx, cy, 26, display::Color::Yellow);
+  _display.fillCircle(cx, cy, 18, display::Color::Orange);
 
   double base = (now / 4000.0) * 2.0 * M_PI;
   for (int k = 0; k < 8; k++)
   {
     double a = base + k * 2.0 * M_PI / 8.0;
-    int32_t x0 = cx + (int32_t)(cos(a) * 32.0);
-    int32_t y0 = cy + (int32_t)(sin(a) * 32.0);
-    int32_t x1 = cx + (int32_t)(cos(a) * 42.0);
-    int32_t y1 = cy + (int32_t)(sin(a) * 42.0);
-    _display.drawLine(x0, y0, x1, y1, display::Color::Yellow);
+    int32_t x0 = cx + (int32_t)(cos(a) * 24.0);
+    int32_t y0 = cy + (int32_t)(sin(a) * 24.0);
+    int32_t x1 = cx + (int32_t)(cos(a) * 32.0);
+    int32_t y1 = cy + (int32_t)(sin(a) * 32.0);
+    _display.drawLine(x0, y0, x1, y1, display::Color::Orange);
   }
 }
 
@@ -234,9 +234,9 @@ void WeatherScreen::drawStorm(unsigned long now)
   if (((now / 250) % 2) == 0)
   {
     int32_t cx = _display.width() / 2;
-    int32_t cy = 82;
-    _display.fillTriangle(cx - 6, cy - 14, cx + 6, cy - 14, cx, cy + 16, display::Color::Yellow);
-    _display.fillTriangle(cx - 3, cy + 12, cx + 3, cy + 12, cx, cy + 30, display::Color::Yellow);
+    int32_t cy = 80;
+    _display.fillTriangle(cx - 6, cy - 12, cx + 6, cy - 12, cx, cy + 14, display::Color::Orange);
+    _display.fillTriangle(cx - 3, cy + 10, cx + 3, cy + 10, cx, cy + 26, display::Color::Orange);
   }
 }
 
@@ -256,7 +256,7 @@ void WeatherScreen::drawFog(unsigned long now)
 {
   for (int band = 0; band < 3; band++)
   {
-    int32_t y = kZoneY + 22 + band * 30;
+    int32_t y = kZoneY + 6 + band * 22;
     int32_t x = drift(now, 50 + band * 20, band * 90);
     _display.fillRect(x, y, 100, 10, display::Color::Gray);
   }

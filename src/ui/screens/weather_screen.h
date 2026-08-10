@@ -40,7 +40,7 @@ namespace ui
 
   private:
     static constexpr int32_t kZoneY = 36;
-    static constexpr int32_t kZoneH = 104;
+    static constexpr int32_t kZoneH = 74;
     static constexpr unsigned long kFrameIntervalMs = 80;
 
     enum class Scene

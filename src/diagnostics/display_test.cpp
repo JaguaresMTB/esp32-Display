@@ -35,7 +35,7 @@ void DisplayTest::run()
 
   _display.clear();
   _display.fillRect(10, 120, _display.width() - 20, 80, display::Color::Red);
-  _display.drawText("Hello World!", _display.width() / 2, 160, display::TextSize::Large);
+  _display.drawText("Hello World!", _display.width() / 2, 160, display::TextSize::Medium);
 
   logging::info(TAG, "diagnostic test complete");
 }

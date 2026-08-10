@@ -125,9 +125,13 @@ namespace
           tft.setFont(&fonts::Font2);
           tft.setTextSize(1);
           break;
-        case TextSize::Large:
+        case TextSize::Medium:
           tft.setFont(&fonts::Font4);
           tft.setTextSize(1);
+          break;
+        case TextSize::Large:
+          tft.setFont(&fonts::Font4);
+          tft.setTextSize(2);
           break;
         case TextSize::XLarge:
           tft.setFont(&fonts::Font4);

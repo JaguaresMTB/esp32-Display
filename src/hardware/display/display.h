@@ -22,8 +22,9 @@ namespace display
   enum class TextSize : uint8_t
   {
     Small = 1,
-    Large = 2,
-    XLarge = 3,
+    Medium = 2,
+    Large = 3,
+    XLarge = 4,
   };
 
   enum class TextAlign : uint8_t

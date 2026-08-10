@@ -63,8 +63,8 @@ Defined in `src/hardware/display/display.h` (`display::IDisplay`):
 
 Supporting types (driver-independent):
 
-- `display::Color` — 16-bit 565 color enum (`Red`, `Green`, `Blue`, `White`, `Black`, `Cyan`, `Magenta`, `Yellow`).
-- `display::TextSize` — `Small`, `Large` (maps to library fonts internally).
+- `display::Color` — 16-bit 565 color enum (`Red`, `Green`, `Blue`, `White`, `Black`, `Cyan`, `Magenta`, `Yellow`, `Orange`, `Gray`).
+- `display::TextSize` — `Small` (16 px), `Medium` (26 px), `Large` (52 px), `XLarge` (52 px) (maps to library fonts internally).
 
 Future primitives (e.g. `drawBitmap(...)`, `drawLine(...)`) are added to `IDisplay` when the application needs them; the implementation adds the matching LovyanGFX call.
 
@@ -190,7 +190,7 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 
 | Method | Purpose |
 |--------|---------|
-| `renderConnecting(ssid, attempt, connected, ip)` | No data yet — connection progress: `Conectando a <SSID>...` + `Intento N` (yellow), or `Conectado <IP>` + `Actualizando clima...` (blue) |
+| `renderConnecting(ssid, attempt, connected, ip)` | No data yet — connection progress: `Conectando a <SSID>...` + `Intento N` (orange), or `Conectado <IP>` + `Actualizando...` (blue) |
 | `render(const WeatherData&)` | Full weather screen (success) |
 | `renderOffline(const WeatherData&)` | Last valid data kept + `Wi-Fi offline` + last update time |
 | `renderUpdateFailed(const WeatherData&)` | Last valid data kept + `Update failed` + last update time |
@@ -198,13 +198,13 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 
 Screen layout (240x320 portrait):
 - Colored header bar with the location name (accent-folded to ASCII, title case).
-- **Animation zone** (y 36-140) — condition-based scene, or spinner while loading.
+- **Animation zone** (y 36-110) — condition-based scene, or spinner while loading.
 - Hero temperature (XLarge), feels-like, condition.
 - Separator line.
 - Metrics (humidity / wind / direction) left/right aligned.
 - Footer with last-update local time (`HH:MM`), or the offline/update-failed indicator.
 
-The header bar color encodes the state (blue = ready, yellow = offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only.
+The header bar color encodes the state (blue = ready, orange = connecting/offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only. Body text uses `Medium` (26 px) for readability; the footer is `Small`.
 
 ### Weather animation
 
@@ -231,7 +231,7 @@ Scenes are drawn with `fillCircle`/`fillEllipse`/`fillTriangle`/`drawLine`/`fill
 ### Display abstraction extensions
 
 `display::IDisplay` was extended across sprints:
-- `TextSize::XLarge` — scaled large font (used for the hero temperature).
+- `TextSize` sizes `Small`/`Medium`/`Large`/`XLarge` (Medium added for readable body text).
 - `TextAlign { Left, Center, Right }` + `drawTextAligned(text, x, y, size, align)`.
 - `drawLine`, `fillCircle`, `fillEllipse`, `fillTriangle` — primitives for the weather animation scenes.
 - `Color` extended with `Orange`, `Gray`.
