@@ -82,12 +82,56 @@ namespace
 
     void drawText(const char* text, int32_t centerX, int32_t centerY, TextSize size) override
     {
-      tft.setTextDatum(middle_center);
       tft.setTextColor(static_cast<uint16_t>(Color::White));
-      tft.setFont(size == TextSize::Large ? &fonts::Font4 : &fonts::Font2);
+      setTextDatum(TextAlign::Center);
+      setFontAndSize(size);
       tft.drawString(text, centerX, centerY);
     }
 
+    void drawTextAligned(const char* text, int32_t x, int32_t y, TextSize size, TextAlign align) override
+    {
+      tft.setTextColor(static_cast<uint16_t>(Color::White));
+      setTextDatum(align);
+      setFontAndSize(size);
+      tft.drawString(text, x, y);
+    }
+
+    void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, Color color) override
+    {
+      tft.drawLine(x0, y0, x1, y1, static_cast<uint16_t>(color));
+    }
+
+  private:
+    void setFontAndSize(TextSize size)
+    {
+      switch (size)
+      {
+        case TextSize::Small:
+          tft.setFont(&fonts::Font2);
+          tft.setTextSize(1);
+          break;
+        case TextSize::Large:
+          tft.setFont(&fonts::Font4);
+          tft.setTextSize(1);
+          break;
+        case TextSize::XLarge:
+          tft.setFont(&fonts::Font4);
+          tft.setTextSize(2);
+          break;
+      }
+    }
+
+    void setTextDatum(TextAlign align)
+    {
+      switch (align)
+      {
+        case TextAlign::Left:   tft.setTextDatum(middle_left);   break;
+        case TextAlign::Center: tft.setTextDatum(middle_center); break;
+        case TextAlign::Right:  tft.setTextDatum(middle_right);  break;
+      }
+    }
+
+  public:
     int32_t width() const override { return tft.width(); }
     int32_t height() const override { return tft.height(); }
   };

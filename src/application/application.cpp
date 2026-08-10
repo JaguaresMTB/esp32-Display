@@ -4,6 +4,14 @@
 
 #include "common/logging.h"
 
+// Timezone offset for the "last update" display (from the local weather config).
+#if __has_include("config/weather_credentials.h")
+#include "config/weather_credentials.h"
+#endif
+#ifndef WEATHER_TIMEZONE_OFFSET_HOURS
+#define WEATHER_TIMEZONE_OFFSET_HOURS 0
+#endif
+
 namespace app
 {
 namespace
@@ -15,7 +23,8 @@ Application::Application(display::IDisplay& display,
                          diagnostics::DisplayTest& displayTest,
                          networking::INetwork& network,
                          weather::IWeatherService& weather)
-  : _display(display), _displayTest(displayTest), _network(network), _weather(weather)
+  : _display(display), _displayTest(displayTest), _network(network), _weather(weather),
+    _weatherScreen(display, WEATHER_TIMEZONE_OFFSET_HOURS * 3600)
 {
 }
 
@@ -37,6 +46,9 @@ bool Application::begin()
   _network.begin();
   _weather.begin();
 
+  _weatherScreen.renderLoading();
+  _lastUiState = UiState::Loading;
+
   return true;
 }
 
@@ -44,21 +56,17 @@ void Application::update()
 {
   _network.update();
 
-  if (_network.state() != _lastNetworkState ||
-      (_network.state() == networking::State::Connected &&
-       (_network.localIp() != _lastIp || _network.rssi() != _lastRssi)))
-  {
-    _lastNetworkState = _network.state();
-    _lastIp = _network.localIp();
-    _lastRssi = _network.rssi();
-    drawNetworkStatus();
-  }
+  const bool connected = _network.isConnected();
 
-  if (!_weatherRequested && _network.isConnected())
+  // Periodic / on-demand weather refresh. Scheduling is elapsed-time based;
+  // the request itself is a single bounded call.
+  if (connected && millis() >= _nextWeatherRefreshAt)
   {
-    _weatherRequested = true;
+    _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs; // safety default
     fetchWeather();
   }
+
+  renderWeatherState();
 
   if (Serial.available())
   {
@@ -67,6 +75,12 @@ void Application::update()
     {
       logging::info(TAG, "rerun requested");
       _displayTest.run();
+      _lastUiState = UiState::None; // force the weather screen to redraw
+    }
+    else if (c == 'w')
+    {
+      logging::info(TAG, "weather refresh requested");
+      _nextWeatherRefreshAt = millis();
     }
   }
 
@@ -86,75 +100,83 @@ void Application::fetchWeather()
 
   if (result == weather::WeatherError::Ok)
   {
+    _weatherData = data;
+    _hasWeatherData = true;
+    _lastWeatherOk = true;
+    _nextWeatherRefreshAt = millis() + kWeatherRefreshIntervalMs;
     logging::info("WEATHER", "request successful");
-    logging::info("WEATHER", "location=%s lat=%.4f lon=%.4f",
-                  data.locationName.c_str(), data.latitude, data.longitude);
-    logging::info("WEATHER", "temperature=%.1f C feels_like=%.1f C",
-                  data.temperatureC, data.feelsLikeC);
-    logging::info("WEATHER", "humidity=%d %% pressure=%d hPa",
-                  data.humidityPercent, data.pressureHpa);
-    logging::info("WEATHER", "wind=%.1f m/s dir=%d deg",
-                  data.windSpeed, data.windDirection);
-    logging::info("WEATHER", "condition=%s (%s)",
-                  data.condition.c_str(), data.conditionDescription.c_str());
-    logging::info("WEATHER", "timestamp=%lu", data.timestamp);
+    logWeather(data);
+    logging::info("WEATHER", "next refresh in %lu s", kWeatherRefreshIntervalMs / 1000);
   }
   else
   {
-    logging::info("WEATHER", "request failed: %s", weather::weatherErrorName(result));
-  }
-
-  drawWeatherStatus(result, data);
-}
-
-void Application::drawNetworkStatus()
-{
-  _display.clear();
-
-  _display.fillRect(0, 0, _display.width(), 28, display::Color::Blue);
-  _display.drawText("Wi-Fi", _display.width() / 2, 14, display::TextSize::Small);
-
-  switch (_network.state())
-  {
-    case networking::State::Connected:
-      _display.drawText("Connected", _display.width() / 2, 120, display::TextSize::Large);
-      _display.drawText(_network.localIp().c_str(), _display.width() / 2, 160, display::TextSize::Small);
-      {
-        String rssiText = "RSSI " + String(_network.rssi()) + " dBm";
-        _display.drawText(rssiText.c_str(), _display.width() / 2, 185, display::TextSize::Small);
-      }
-      break;
-
-    case networking::State::Connecting:
-    case networking::State::Reconnecting:
-      _display.drawText("Connecting...", _display.width() / 2, 120, display::TextSize::Large);
-      break;
-
-    case networking::State::Disconnected:
-      _display.drawText("No network", _display.width() / 2, 120, display::TextSize::Large);
-      break;
+    _lastWeatherOk = false;
+    _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs;
+    logging::info("WEATHER", "request failed: %s (next in %lu s)",
+                  weather::weatherErrorName(result), kWeatherRetryIntervalMs / 1000);
   }
 }
 
-void Application::drawWeatherStatus(weather::WeatherError result, const weather::WeatherData& data)
+void Application::logWeather(const weather::WeatherData& data) const
 {
-  _display.clear();
+  logging::info("WEATHER", "location=%s lat=%.4f lon=%.4f",
+                data.locationName.c_str(), data.latitude, data.longitude);
+  logging::info("WEATHER", "temperature=%.1f C feels_like=%.1f C",
+                data.temperatureC, data.feelsLikeC);
+  logging::info("WEATHER", "humidity=%d %% pressure=%d hPa",
+                data.humidityPercent, data.pressureHpa);
+  logging::info("WEATHER", "wind=%.1f m/s dir=%d deg",
+                data.windSpeed, data.windDirection);
+  logging::info("WEATHER", "condition=%s (%s)",
+                data.condition.c_str(), data.conditionDescription.c_str());
+  logging::info("WEATHER", "timestamp=%lu", data.timestamp);
+}
 
-  _display.fillRect(0, 0, _display.width(), 28, display::Color::Blue);
-  _display.drawText("Weather", _display.width() / 2, 14, display::TextSize::Small);
+void Application::renderWeatherState()
+{
+  const bool connected = _network.isConnected();
 
-  if (result == weather::WeatherError::Ok)
+  UiState target;
+  if (!_hasWeatherData)
   {
-    String tempText = String(data.temperatureC, 1) + " C";
-    _display.drawText("Weather OK", _display.width() / 2, 120, display::TextSize::Large);
-    _display.drawText(tempText.c_str(), _display.width() / 2, 165, display::TextSize::Large);
-    _display.drawText(data.conditionDescription.c_str(), _display.width() / 2, 205, display::TextSize::Small);
+    target = UiState::Loading;
+  }
+  else if (!connected)
+  {
+    target = UiState::Offline;
+  }
+  else if (!_lastWeatherOk)
+  {
+    target = UiState::UpdateFailed;
   }
   else
   {
-    _display.drawText("Weather", _display.width() / 2, 100, display::TextSize::Large);
-    _display.drawText("ERROR", _display.width() / 2, 140, display::TextSize::Large);
-    _display.drawText(weather::weatherErrorName(result), _display.width() / 2, 185, display::TextSize::Small);
+    target = UiState::Ready;
+  }
+
+  const unsigned long stamp = _hasWeatherData ? _weatherData.timestamp : 0;
+  if (target != _lastUiState || stamp != _lastRenderedStamp)
+  {
+    _lastUiState = target;
+    _lastRenderedStamp = stamp;
+
+    switch (target)
+    {
+      case UiState::Loading:
+        _weatherScreen.renderLoading();
+        break;
+      case UiState::Ready:
+        _weatherScreen.render(_weatherData);
+        break;
+      case UiState::Offline:
+        _weatherScreen.renderOffline(_weatherData);
+        break;
+      case UiState::UpdateFailed:
+        _weatherScreen.renderUpdateFailed(_weatherData);
+        break;
+      default:
+        break;
+    }
   }
 }
 }

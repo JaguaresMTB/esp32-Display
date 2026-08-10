@@ -21,6 +21,14 @@ namespace display
   {
     Small = 1,
     Large = 2,
+    XLarge = 3,
+  };
+
+  enum class TextAlign : uint8_t
+  {
+    Left = 0,
+    Center = 1,
+    Right = 2,
   };
 
   // Display abstraction. Application and diagnostic code depend only on this
@@ -44,6 +52,14 @@ namespace display
 
     // Draw text centered horizontally/vertically at (centerX, centerY).
     virtual void drawText(const char* text, int32_t centerX, int32_t centerY, TextSize size) = 0;
+
+    // Draw text with the given horizontal alignment; `x` is the anchor (left
+    // edge for Left, center for Center, right edge for Right). Vertically
+    // centered at `y`.
+    virtual void drawTextAligned(const char* text, int32_t x, int32_t y, TextSize size, TextAlign align) = 0;
+
+    // Draw a single-pixel line.
+    virtual void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, Color color) = 0;
 
     // Display dimensions in pixels.
     virtual int32_t width() const = 0;

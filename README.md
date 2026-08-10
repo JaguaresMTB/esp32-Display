@@ -14,8 +14,9 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Firmware architecture | **PASS** — layered: main -> application -> display/network/weather abstractions |
 | Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
 | OpenWeather | **PASS** — HTTPS request, JSON parse, WeatherData populated (25.4 C in Mérida) |
+| Weather UI + refresh | **PASS** — production weather screen, 15-min periodic refresh, offline/failure states |
 
-See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3 — Wi-Fi Foundation](docs/sprints/003-wifi-foundation.md), and [Sprint 4 — OpenWeather Integration](docs/sprints/004-openweather-integration.md).
+See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3 — Wi-Fi Foundation](docs/sprints/003-wifi-foundation.md), [Sprint 4 — OpenWeather Integration](docs/sprints/004-openweather-integration.md), and [Sprint 5 — Weather Display UI and Periodic Refresh](docs/sprints/005-weather-display-ui.md).
 
 ## Hardware
 
@@ -44,8 +45,9 @@ upload_port = COM4
 
 ### Serial control
 
-- On boot the firmware runs the display test automatically, then shows the Wi-Fi status screen.
+- On boot the firmware runs the display test automatically, then shows the weather screen.
 - Send `r` over serial to re-run the display test on demand.
+- Send `w` over serial to force an immediate weather refresh (default interval is 15 min).
 - The firmware prints an `alive` heartbeat every 2 s.
 
 ### Display test sequence
@@ -107,6 +109,10 @@ esp32-Display/
 │   │   └── weather/
 │   │       ├── weather.h         # weather abstraction (IWeatherService, WeatherData)
 │   │       └── weather.cpp       # OpenWeatherProvider + JSON parsing
+│   ├── ui/
+│   │   └── screens/
+│   │       ├── weather_screen.h  # production weather screen (presentation only)
+│   │       └── weather_screen.cpp
 │   ├── application/
 │   │   ├── application.h         # application lifecycle
 │   │   └── application.cpp

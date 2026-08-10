@@ -8,6 +8,7 @@
 - [Sprint 2 — Firmware Architecture Foundation](sprints/002-firmware-architecture-foundation.md) — completed sprint.
 - [Sprint 3 — Wi-Fi Foundation](sprints/003-wifi-foundation.md) — completed sprint.
 - [Sprint 4 — OpenWeather Integration](sprints/004-openweather-integration.md) — completed sprint.
+- [Sprint 5 — Weather Display UI and Periodic Refresh](sprints/005-weather-display-ui.md) — completed sprint.
 - [Sprint template](sprints/000-TEMPLATE.md) — template for future sprint documents.
 
 ## Convention: sprint documentation

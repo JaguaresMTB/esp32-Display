@@ -44,7 +44,7 @@ diagnostics (DisplayTest) --> display::IDisplay
 ```
 
 - `main.cpp` is the composition root: it wires the concrete display, network, and weather implementations (via `display::getDisplay()`, `networking::getNetwork()`, and `weather::getWeatherService()`) into the application. It contains no display-, network-, or weather-specific logic.
-- The `application` layer owns the lifecycle (`begin()` / `update()`) and depends only on `display::IDisplay`, `diagnostics::DisplayTest`, `networking::INetwork`, and `weather::IWeatherService`.
+- The `application` layer owns the lifecycle (`begin()` / `update()`) and depends only on `display::IDisplay`, `diagnostics::DisplayTest`, `networking::INetwork`, `weather::IWeatherService`, and `ui::WeatherScreen`.
 - The `diagnostics` layer (display test) depends only on `display::IDisplay`.
 - Only `hardware/display/display.cpp` includes LovyanGFX. Only `networking/network.cpp` includes `<WiFi.h>`. Only `networking/http.cpp` includes `HTTPClient`/`WiFiClientSecure`. Only `services/weather/weather.cpp` knows OpenWeather details. Everything else is driver/provider-agnostic.
 
@@ -180,6 +180,48 @@ The model intentionally stays small and never exposes provider-specific structur
 - When Wi-Fi first becomes `Connected`, `Application::update()` performs a **single** bounded weather request (one-shot; no periodic refresh). It logs non-sensitive values and draws a simple `Weather OK / <temp> C` diagnostic screen (not a production UI).
 - The request never blocks indefinitely: `http::SecureClient` has a bounded timeout (~10 s), failures return immediately with a logged reason, and there is no retry loop.
 
+## UI layer (WeatherScreen)
+
+Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **presentation-only** component: it depends only on `display::IDisplay` and the provider-independent `weather::WeatherData`. It makes no HTTP requests, calls no WiFi APIs, parses no JSON, and knows nothing about OpenWeather or API keys.
+
+| Method | Purpose |
+|--------|---------|
+| `renderLoading()` | No data yet — `Weather / Updating...` (no stale values) |
+| `render(const WeatherData&)` | Full weather screen (success) |
+| `renderOffline(const WeatherData&)` | Last valid data kept + `Wi-Fi offline` + last update time |
+| `renderUpdateFailed(const WeatherData&)` | Last valid data kept + `Update failed` + last update time |
+
+Screen layout (240x320 portrait):
+- Colored header bar with the location name (accent-folded to ASCII, title case).
+- Hero temperature (XLarge), feels-like, condition.
+- Separator line.
+- Metrics (humidity / wind / direction) left/right aligned.
+- Footer with last-update local time (`HH:MM`), or the offline/update-failed indicator.
+
+The header/footer bar color encodes the state (blue = ready, yellow = offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only.
+
+### Display abstraction extensions
+
+`display::IDisplay` was extended minimally in this sprint:
+- `TextSize::XLarge` — scaled large font (used for the hero temperature).
+- `TextAlign { Left, Center, Right }` + `drawTextAligned(text, x, y, size, align)`.
+- `drawLine(x0, y0, x1, y1, Color)`.
+
+No LovyanGFX types are exposed through the UI layer.
+
+## Application responsibilities
+
+`Application` owns:
+- Network state tracking (via `networking::INetwork`).
+- **WeatherData caching** — `_weatherData` + `_hasWeatherData`. The cache is replaced **only** after a successful request (`WeatherError::Ok`); failures keep the last valid data (RAM-only; lost on reboot).
+- **Refresh scheduling** — elapsed-time based, never `delay()`:
+  - `kWeatherRefreshIntervalMs = 15 min` after a successful request.
+  - `kWeatherRetryIntervalMs = 5 min` after a failed request (bounded, no tight loop).
+  - Serial command `w` forces an immediate refresh; `r` re-runs the display diagnostic.
+- **State selection** — `Loading` (no data), `Ready` (data + connected + last fetch ok), `Offline` (data + not connected), `UpdateFailed` (data + connected + last fetch failed). The screen is redrawn only when the state or the data timestamp changes.
+
+The main loop stays responsive: Wi-Fi, refresh scheduling, and rendering are all driven from `Application::update()` without blocking loops.
+
 ## Hardware configuration ownership
 
 `src/config/pins.h` is the single authoritative location for hardware definitions:
@@ -207,10 +249,10 @@ Tags in use: `APP` (application), `DISPLAY` (display init), `NET` (networking), 
 
 ## Future extension points
 
-- **Weather UI:** build the production weather screen in the `application` layer, drawing through `IDisplay` (weather data already flows to `Application` via `IWeatherService`).
-- **Periodic refresh:** add an elapsed-time scheduler in `Application::update()` to re-request weather at intervals (currently one-shot).
+- **Weather UI polish:** extend `WeatherScreen` (icons, more metrics, custom fonts) while keeping it presentation-only through `IDisplay`.
 - **Forecast / more fields:** extend `WeatherData` and the provider parser; the model stays provider-independent.
+- **Persistent cache:** move the last-known weather into NVS so it survives reboot (currently RAM-only).
 - **HTTP hardening:** replace `setInsecure()` with pinned/root-CA certificate verification.
-- **Application UI:** add views/widgets in the `application` layer; they draw through `IDisplay`.
+- **Application UI:** add more screens in the `ui` layer; they draw through `IDisplay`.
 - **Bitmap/images:** extend `IDisplay` with `drawBitmap(...)`.
 - **NVS/settings:** a future `config/settings` module; pins/display params remain compile-time constants in `config/pins.h`.

@@ -27,3 +27,9 @@
 #ifndef WEATHER_LONGITUDE
 #define WEATHER_LONGITUDE -89.6170f
 #endif
+
+// Local timezone offset for the configured location (UTC hours; Mérida,
+// Mexico is UTC-6, no DST). Used to format the "last update" time.
+#ifndef WEATHER_TIMEZONE_OFFSET_HOURS
+#define WEATHER_TIMEZONE_OFFSET_HOURS -6
+#endif
