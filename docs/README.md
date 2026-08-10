@@ -6,6 +6,7 @@
 - [Architecture](architecture.md) — project structure, dependency direction, display abstraction.
 - [Sprint 1 — Hardware validation](sprints/001-hardware-validation.md) — completed sprint.
 - [Sprint 2 — Firmware Architecture Foundation](sprints/002-firmware-architecture-foundation.md) — completed sprint.
+- [Sprint 3 — Wi-Fi Foundation](sprints/003-wifi-foundation.md) — completed sprint.
 - [Sprint template](sprints/000-TEMPLATE.md) — template for future sprint documents.
 
 ## Convention: sprint documentation

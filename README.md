@@ -11,9 +11,10 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Serial (USB-C) | PASS |
 | Display init (software) | PASS |
 | Display rendering (visual) | **PASS** — color cycle and text confirmed on screen |
-| Firmware architecture | **PASS** — layered: main -> application -> display abstraction -> LovyanGFX |
+| Firmware architecture | **PASS** — layered: main -> application -> display/network abstractions |
+| Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
 
-See [Sprint 1 close-out](docs/sprints/001-hardware-validation.md) and [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md).
+See [Sprint 1 close-out](docs/sprints/001-hardware-validation.md), [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md), and [Sprint 3 — Wi-Fi Foundation](docs/sprints/003-wifi-foundation.md).
 
 ## Hardware
 
@@ -42,8 +43,8 @@ upload_port = COM4
 
 ### Serial control
 
-- On boot the firmware runs the display test automatically.
-- Send `r` over serial to re-run the test on demand.
+- On boot the firmware runs the display test automatically, then shows the Wi-Fi status screen.
+- Send `r` over serial to re-run the display test on demand.
 - The firmware prints an `alive` heartbeat every 2 s.
 
 ### Display test sequence
@@ -54,6 +55,17 @@ upload_port = COM4
 4. Full-screen WHITE (2 s)
 5. Text frame: black background, red box, white text
 
+### Wi-Fi setup
+
+Wi-Fi credentials are provided via a local, git-ignored file:
+
+```sh
+cp src/config/wifi_credentials.example.h src/config/wifi_credentials.h
+# edit src/config/wifi_credentials.h -> set WIFI_SSID and WIFI_PASSWORD
+```
+
+`src/config/wifi_credentials.h` is never committed and the password is never logged.
+
 ## Project structure
 
 ```
@@ -63,13 +75,18 @@ esp32-Display/
 ├── src/
 │   ├── main.cpp                  # minimal composition root (wiring only)
 │   ├── config/
-│   │   └── pins.h                # GPIO mapping + display params (single source of truth)
+│   │   ├── pins.h                # GPIO mapping + display params (single source of truth)
+│   │   ├── wifi_credentials.example.h  # Wi-Fi credentials template (tracked)
+│   │   └── wifi_credentials.h    # real credentials (LOCAL, gitignored)
 │   ├── common/
 │   │   └── logging.h             # serial logging convention
 │   ├── hardware/
 │   │   └── display/
 │   │       ├── display.h         # display abstraction (IDisplay)
 │   │       └── display.cpp       # LovyanGFX/ST7789 implementation
+│   ├── networking/
+│   │   ├── network.h             # Wi-Fi abstraction (INetwork)
+│   │   └── network.cpp           # Arduino WiFi implementation (state machine)
 │   ├── application/
 │   │   ├── application.h         # application lifecycle
 │   │   └── application.cpp
@@ -83,7 +100,8 @@ esp32-Display/
     └── sprints/                  # one document per completed sprint
         ├── 000-TEMPLATE.md
         ├── 001-hardware-validation.md
-        └── 002-firmware-architecture-foundation.md
+        ├── 002-firmware-architecture-foundation.md
+        └── 003-wifi-foundation.md
 ```
 
 ## Configuration

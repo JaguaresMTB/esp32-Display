@@ -4,12 +4,14 @@
 #include "common/logging.h"
 #include "diagnostics/display_test.h"
 #include "hardware/display/display.h"
+#include "networking/network.h"
 
-// Composition root: wire the concrete display implementation to the
-// application. No display-specific logic lives here.
+// Composition root: wire the concrete display and network implementations to
+// the application. No display- or network-specific logic lives here.
 static display::IDisplay& g_display = display::getDisplay();
 static diagnostics::DisplayTest g_displayTest(g_display);
-static app::Application g_application(g_display, g_displayTest);
+static networking::INetwork& g_network = networking::getNetwork();
+static app::Application g_application(g_display, g_displayTest, g_network);
 
 void setup(void)
 {
