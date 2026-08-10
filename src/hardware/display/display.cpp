@@ -101,6 +101,21 @@ namespace
       tft.drawLine(x0, y0, x1, y1, static_cast<uint16_t>(color));
     }
 
+    void fillCircle(int32_t cx, int32_t cy, int32_t radius, Color color) override
+    {
+      tft.fillCircle(cx, cy, radius, static_cast<uint16_t>(color));
+    }
+
+    void fillEllipse(int32_t cx, int32_t cy, int32_t rx, int32_t ry, Color color) override
+    {
+      tft.fillEllipse(cx, cy, rx, ry, static_cast<uint16_t>(color));
+    }
+
+    void fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, Color color) override
+    {
+      tft.fillTriangle(x0, y0, x1, y1, x2, y2, static_cast<uint16_t>(color));
+    }
+
   private:
     void setFontAndSize(TextSize size)
     {

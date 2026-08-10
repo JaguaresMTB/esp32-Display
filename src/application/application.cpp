@@ -11,6 +11,9 @@
 #ifndef WEATHER_TIMEZONE_OFFSET_HOURS
 #define WEATHER_TIMEZONE_OFFSET_HOURS 0
 #endif
+#ifndef WEATHER_UI_LANG
+#define WEATHER_UI_LANG 1
+#endif
 
 namespace app
 {
@@ -24,7 +27,8 @@ Application::Application(display::IDisplay& display,
                          networking::INetwork& network,
                          weather::IWeatherService& weather)
   : _display(display), _displayTest(displayTest), _network(network), _weather(weather),
-    _weatherScreen(display, WEATHER_TIMEZONE_OFFSET_HOURS * 3600)
+    _weatherScreen(display, WEATHER_TIMEZONE_OFFSET_HOURS * 3600,
+                   WEATHER_UI_LANG ? ui::Language::Spanish : ui::Language::English)
 {
 }
 
@@ -67,6 +71,8 @@ void Application::update()
   }
 
   renderWeatherState();
+
+  _weatherScreen.updateAnimation(millis());
 
   if (Serial.available())
   {

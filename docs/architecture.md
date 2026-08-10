@@ -143,13 +143,14 @@ struct WeatherData {
   int humidityPercent, pressureHpa;
   float windSpeed;         // m/s
   int windDirection;       // degrees
-  String condition;        // e.g. "Clear"
-  String conditionDescription;
+  String condition;        // raw condition group, e.g. "Clouds"
+  Condition conditionId;   // typed group for the UI/animation
+  String conditionDescription; // localized description, e.g. "nubes dispersas"
   unsigned long timestamp; // unix seconds
 };
 ```
 
-The model intentionally stays small and never exposes provider-specific structures.
+`weather::Condition` is a provider-independent enum (`Clear`, `Clouds`, `Drizzle`, `Rain`, `Thunderstorm`, `Snow`, `Mist`, `Fog`, `Haze`, `Smoke`, `Dust`, `Sand`, `Ash`, `Squall`, `Tornado`, `Unknown`) mapped by the provider from the API's condition group. The UI switches on the enum, so it never depends on provider-specific vocabulary. The model intentionally stays small and never exposes provider-specific structures.
 
 ### OpenWeatherProvider
 
@@ -177,7 +178,7 @@ The model intentionally stays small and never exposes provider-specific structur
 ### Weather / application dependency
 
 - `Application` receives `weather::IWeatherService&` by injection (wired in `main.cpp`).
-- When Wi-Fi first becomes `Connected`, `Application::update()` performs a **single** bounded weather request (one-shot; no periodic refresh). It logs non-sensitive values and draws a simple `Weather OK / <temp> C` diagnostic screen (not a production UI).
+- `Application::update()` performs bounded weather requests on an elapsed-time schedule (15 min after success, 5 min after failure; serial `w` forces one). It logs non-sensitive values and draws the weather screen through `ui::WeatherScreen`.
 - The request never blocks indefinitely: `http::SecureClient` has a bounded timeout (~10 s), failures return immediately with a logged reason, and there is no retry loop.
 
 ## UI layer (WeatherScreen)
@@ -190,22 +191,47 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 | `render(const WeatherData&)` | Full weather screen (success) |
 | `renderOffline(const WeatherData&)` | Last valid data kept + `Wi-Fi offline` + last update time |
 | `renderUpdateFailed(const WeatherData&)` | Last valid data kept + `Update failed` + last update time |
+| `updateAnimation(now)` | Called every loop; throttled (~12 fps); redraws the animation zone |
 
 Screen layout (240x320 portrait):
 - Colored header bar with the location name (accent-folded to ASCII, title case).
+- **Animation zone** (y 36-140) — condition-based scene, or spinner while loading.
 - Hero temperature (XLarge), feels-like, condition.
 - Separator line.
 - Metrics (humidity / wind / direction) left/right aligned.
 - Footer with last-update local time (`HH:MM`), or the offline/update-failed indicator.
 
-The header/footer bar color encodes the state (blue = ready, yellow = offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only.
+The header bar color encodes the state (blue = ready, yellow = offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only.
+
+### Weather animation
+
+`updateAnimation()` is time-driven from `millis()` (no timers, no framebuffer): it clears the animation zone and redraws a small procedural scene. Scenes map from `WeatherData.conditionId`:
+
+| Condition group | Scene |
+|-----------------|-------|
+| Clear | Sun with rotating rays |
+| Clouds | Drifting cloud shapes |
+| Drizzle, Rain | Cloud + falling rain lines |
+| Thunderstorm | Cloud + blinking lightning bolt |
+| Snow | Cloud + falling snowflakes |
+| Mist, Fog, Haze, Smoke, Dust, Sand, Ash | Drifting fog bands |
+| Squall, Tornado, Unknown | Clouds (fallback) |
+| (loading) | Spinning dots |
+
+Scenes are drawn with `fillCircle`/`fillEllipse`/`fillTriangle`/`drawLine`/`fillRect` through `IDisplay` — no image assets, no LovyanGFX types in the UI layer. Only the animation zone is redrawn each frame (static text renders only on state change), keeping the screen stable and the loop responsive.
+
+### Language (UI labels + descriptions)
+
+- UI labels are selectable via `WEATHER_UI_LANG` in the weather config (`0` = English, `1` = Spanish). `Application` passes a `ui::Language` to the screen; labels use ASCII-safe Spanish (`Sensacion`, `Humedad`, `Viento`, `Direccion`, `Actualizado`, `Wi-Fi sin conexion`, `Error de actualizacion`).
+- Weather descriptions come from the API already localized via `WEATHER_LANG` (e.g. `es` → `nubes dispersas`), so no translation table is needed in firmware.
 
 ### Display abstraction extensions
 
-`display::IDisplay` was extended minimally in this sprint:
+`display::IDisplay` was extended across sprints:
 - `TextSize::XLarge` — scaled large font (used for the hero temperature).
 - `TextAlign { Left, Center, Right }` + `drawTextAligned(text, x, y, size, align)`.
-- `drawLine(x0, y0, x1, y1, Color)`.
+- `drawLine`, `fillCircle`, `fillEllipse`, `fillTriangle` — primitives for the weather animation scenes.
+- `Color` extended with `Orange`, `Gray`.
 
 No LovyanGFX types are exposed through the UI layer.
 
@@ -219,6 +245,7 @@ No LovyanGFX types are exposed through the UI layer.
   - `kWeatherRetryIntervalMs = 5 min` after a failed request (bounded, no tight loop).
   - Serial command `w` forces an immediate refresh; `r` re-runs the display diagnostic.
 - **State selection** — `Loading` (no data), `Ready` (data + connected + last fetch ok), `Offline` (data + not connected), `UpdateFailed` (data + connected + last fetch failed). The screen is redrawn only when the state or the data timestamp changes.
+- **Animation** — `_weatherScreen.updateAnimation(millis())` runs every loop iteration; the screen throttles internally (~12 fps).
 
 The main loop stays responsive: Wi-Fi, refresh scheduling, and rendering are all driven from `Application::update()` without blocking loops.
 
@@ -249,7 +276,7 @@ Tags in use: `APP` (application), `DISPLAY` (display init), `NET` (networking), 
 
 ## Future extension points
 
-- **Weather UI polish:** extend `WeatherScreen` (icons, more metrics, custom fonts) while keeping it presentation-only through `IDisplay`.
+- **Weather UI polish:** more scenes/icons, richer animations, custom fonts — all still presentation-only through `IDisplay`.
 - **Forecast / more fields:** extend `WeatherData` and the provider parser; the model stays provider-independent.
 - **Persistent cache:** move the last-known weather into NVS so it survives reboot (currently RAM-only).
 - **HTTP hardening:** replace `setInsecure()` with pinned/root-CA certificate verification.

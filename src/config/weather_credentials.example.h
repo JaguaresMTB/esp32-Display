@@ -33,3 +33,13 @@
 #ifndef WEATHER_TIMEZONE_OFFSET_HOURS
 #define WEATHER_TIMEZONE_OFFSET_HOURS -6
 #endif
+
+// OpenWeather response language (e.g. "es", "en"). Empty string = default.
+#ifndef WEATHER_LANG
+#define WEATHER_LANG "es"
+#endif
+
+// Weather screen UI language: 0 = English, 1 = Spanish.
+#ifndef WEATHER_UI_LANG
+#define WEATHER_UI_LANG 1
+#endif

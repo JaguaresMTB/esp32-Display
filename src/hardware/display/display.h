@@ -15,6 +15,8 @@ namespace display
     Cyan    = 0x07FF,
     Magenta = 0xF81F,
     Yellow  = 0xFFE0,
+    Orange  = 0xFD20,
+    Gray    = 0x8410,
   };
 
   enum class TextSize : uint8_t
@@ -60,6 +62,15 @@ namespace display
 
     // Draw a single-pixel line.
     virtual void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, Color color) = 0;
+
+    // Filled circle.
+    virtual void fillCircle(int32_t cx, int32_t cy, int32_t radius, Color color) = 0;
+
+    // Filled ellipse.
+    virtual void fillEllipse(int32_t cx, int32_t cy, int32_t rx, int32_t ry, Color color) = 0;
+
+    // Filled triangle.
+    virtual void fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, Color color) = 0;
 
     // Display dimensions in pixels.
     virtual int32_t width() const = 0;

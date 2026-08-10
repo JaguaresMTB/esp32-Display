@@ -25,6 +25,9 @@
 #ifndef WEATHER_LOCATION_NAME
 #define WEATHER_LOCATION_NAME ""
 #endif
+#ifndef WEATHER_LANG
+#define WEATHER_LANG ""
+#endif
 
 namespace weather
 {
@@ -119,9 +122,35 @@ namespace
       url += String(WEATHER_LATITUDE, 6);
       url += "&lon=";
       url += String(WEATHER_LONGITUDE, 6);
-      url += "&units=metric&appid=";
+      url += "&units=metric";
+      if (WEATHER_LANG[0] != '\0')
+      {
+        url += "&lang=";
+        url += WEATHER_LANG;
+      }
+      url += "&appid=";
       url += OPENWEATHER_API_KEY;
       return url;
+    }
+
+    static Condition toCondition(const String& group)
+    {
+      if (group == "Clear")        return Condition::Clear;
+      if (group == "Clouds")       return Condition::Clouds;
+      if (group == "Drizzle")      return Condition::Drizzle;
+      if (group == "Rain")         return Condition::Rain;
+      if (group == "Thunderstorm") return Condition::Thunderstorm;
+      if (group == "Snow")         return Condition::Snow;
+      if (group == "Mist")         return Condition::Mist;
+      if (group == "Fog")          return Condition::Fog;
+      if (group == "Haze")         return Condition::Haze;
+      if (group == "Smoke")        return Condition::Smoke;
+      if (group == "Dust")         return Condition::Dust;
+      if (group == "Sand")         return Condition::Sand;
+      if (group == "Ash")          return Condition::Ash;
+      if (group == "Squall")       return Condition::Squall;
+      if (group == "Tornado")      return Condition::Tornado;
+      return Condition::Unknown;
     }
 
     WeatherError parse(const String& body, WeatherData& data) const
@@ -165,6 +194,7 @@ namespace
       data.windDirection = wind["deg"] | 0;
 
       data.condition = doc["weather"][0]["main"] | "";
+      data.conditionId = toCondition(data.condition);
       data.conditionDescription = doc["weather"][0]["description"] | "";
       data.timestamp = doc["dt"] | 0UL;
 

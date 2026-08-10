@@ -4,6 +4,28 @@
 
 namespace weather
 {
+  // Provider-independent weather condition group (used by the UI for
+  // animation/scenes). Mapped from the provider's condition group.
+  enum class Condition : uint8_t
+  {
+    Clear,
+    Clouds,
+    Drizzle,
+    Rain,
+    Thunderstorm,
+    Snow,
+    Mist,
+    Fog,
+    Haze,
+    Smoke,
+    Dust,
+    Sand,
+    Ash,
+    Squall,
+    Tornado,
+    Unknown,
+  };
+
   // Provider-independent weather data model.
   struct WeatherData
   {
@@ -19,8 +41,9 @@ namespace weather
     float windSpeed = 0.0f; // m/s
     int windDirection = 0;  // degrees (meteorological)
 
-    String condition;            // e.g. "Clear"
-    String conditionDescription; // e.g. "clear sky"
+    String condition;            // raw condition group, e.g. "Clouds"
+    Condition conditionId = Condition::Unknown; // typed group for the UI
+    String conditionDescription; // localized description, e.g. "nubes dispersas"
 
     unsigned long timestamp = 0; // unix seconds
   };

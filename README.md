@@ -15,8 +15,10 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
 | OpenWeather | **PASS** — HTTPS request, JSON parse, WeatherData populated (25.4 C in Mérida) |
 | Weather UI + refresh | **PASS** — production weather screen, 15-min periodic refresh, offline/failure states |
+| Weather animation | **PASS** — condition-based animated scenes (sun/clouds/rain/storm/snow/fog) |
+| Language | **PASS** — Spanish UI labels + localized descriptions (`lang=es`) |
 
-See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3 — Wi-Fi Foundation](docs/sprints/003-wifi-foundation.md), [Sprint 4 — OpenWeather Integration](docs/sprints/004-openweather-integration.md), and [Sprint 5 — Weather Display UI and Periodic Refresh](docs/sprints/005-weather-display-ui.md).
+See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3](docs/sprints/003-wifi-foundation.md), [Sprint 4](docs/sprints/004-openweather-integration.md), [Sprint 5](docs/sprints/005-weather-display-ui.md), and [Sprint 6 — Weather Animation and Spanish UI](docs/sprints/006-weather-animation-i18n.md).
 
 ## Hardware
 
@@ -75,10 +77,11 @@ OpenWeather API key + location are provided via a local, git-ignored file:
 
 ```sh
 cp src/config/weather_credentials.example.h src/config/weather_credentials.h
-# edit src/config/weather_credentials.h -> set OPENWEATHER_API_KEY and coordinates
+# edit src/config/weather_credentials.h -> set OPENWEATHER_API_KEY, coordinates,
+# WEATHER_LANG (es/en) and WEATHER_UI_LANG (0=English, 1=Spanish)
 ```
 
-`src/config/weather_credentials.h` is never committed and the API key is never logged. After Wi-Fi connects, the application performs one weather request and logs the result (temperature, humidity, pressure, wind, condition).
+`src/config/weather_credentials.h` is never committed and the API key is never logged. After Wi-Fi connects, the application performs one weather request and logs the result (temperature, humidity, pressure, wind, condition). The display shows an animated condition scene and periodic refreshes run every 15 minutes.
 
 ## Project structure
 

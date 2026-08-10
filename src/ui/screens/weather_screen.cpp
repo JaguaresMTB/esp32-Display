@@ -1,43 +1,110 @@
 #include "weather_screen.h"
 
+#include <math.h>
 #include <stdio.h>
 
 namespace ui
 {
-WeatherScreen::WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetSeconds)
-  : _display(display), _tzOffsetSeconds(timezoneOffsetSeconds)
+WeatherScreen::WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetSeconds,
+                             Language language)
+  : _display(display), _tzOffsetSeconds(timezoneOffsetSeconds), _language(language)
 {
 }
 
 void WeatherScreen::renderLoading()
 {
   _display.clear();
-  drawHeader("Weather", display::Color::Blue);
-  _display.drawText("Updating...", _display.width() / 2, 150, display::TextSize::Large);
+  drawHeader(label("Weather", "Clima"), display::Color::Blue);
+  _display.drawText(label("Updating...", "Actualizando..."), _display.width() / 2, 180,
+                    display::TextSize::Large);
+
+  _hasData = false;
+  _loading = true;
+  _scene = Scene::None;
 }
 
 void WeatherScreen::render(const weather::WeatherData& data)
 {
   _display.clear();
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Blue);
+
+  _hasData = true;
+  _loading = false;
+  _scene = sceneFor(data.conditionId);
+
   drawWeatherBody(data);
-  drawFooter("Updated " + formatTime(data.timestamp), display::Color::Blue);
+  drawFooter(String(label("Updated ", "Actualizado ")) + formatTime(data.timestamp),
+             display::Color::Blue);
 }
 
 void WeatherScreen::renderOffline(const weather::WeatherData& data)
 {
   _display.clear();
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Yellow);
+
+  _hasData = true;
+  _loading = false;
+  _scene = sceneFor(data.conditionId);
+
   drawWeatherBody(data);
-  drawFooter("Wi-Fi offline  |  " + formatTime(data.timestamp), display::Color::Yellow);
+  drawFooter(String(label("Wi-Fi offline  |  ", "Wi-Fi sin conexion  |  ")) +
+                 formatTime(data.timestamp),
+             display::Color::Yellow);
 }
 
 void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
 {
   _display.clear();
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Red);
+
+  _hasData = true;
+  _loading = false;
+  _scene = sceneFor(data.conditionId);
+
   drawWeatherBody(data);
-  drawFooter("Update failed  |  " + formatTime(data.timestamp), display::Color::Red);
+  drawFooter(String(label("Update failed  |  ", "Error de actualizacion  |  ")) +
+                 formatTime(data.timestamp),
+             display::Color::Red);
+}
+
+void WeatherScreen::updateAnimation(unsigned long now)
+{
+  if (now - _lastFrame < kFrameIntervalMs)
+  {
+    return;
+  }
+  _lastFrame = now;
+
+  clearZone();
+  if (_loading)
+  {
+    drawSpinner(now);
+  }
+  else if (_hasData)
+  {
+    drawScene(now);
+  }
+}
+
+WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition)
+{
+  switch (condition)
+  {
+    case weather::Condition::Clear: return Scene::Sun;
+    case weather::Condition::Clouds: return Scene::Clouds;
+    case weather::Condition::Drizzle:
+    case weather::Condition::Rain: return Scene::Rain;
+    case weather::Condition::Thunderstorm: return Scene::Storm;
+    case weather::Condition::Snow: return Scene::Snow;
+    case weather::Condition::Mist:
+    case weather::Condition::Fog:
+    case weather::Condition::Haze:
+    case weather::Condition::Smoke:
+    case weather::Condition::Dust:
+    case weather::Condition::Sand:
+    case weather::Condition::Ash: return Scene::Fog;
+    default: return Scene::Clouds;
+  }
 }
 
 void WeatherScreen::drawHeader(const char* title, display::Color barColor)
@@ -48,29 +115,24 @@ void WeatherScreen::drawHeader(const char* title, display::Color barColor)
 
 void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
 {
-  // Temperature (hero).
   {
     String temp = String(data.temperatureC, 1) + " C";
-    _display.drawText(temp.c_str(), _display.width() / 2, 105, display::TextSize::XLarge);
+    _display.drawText(temp.c_str(), _display.width() / 2, 168, display::TextSize::XLarge);
   }
 
-  // Feels-like.
   {
-    String feels = "Feels like " + String(data.feelsLikeC, 1) + " C";
-    _display.drawText(feels.c_str(), _display.width() / 2, 150, display::TextSize::Small);
+    String feels = String(label("Feels like ", "Sensacion ")) + String(data.feelsLikeC, 1) + " C";
+    _display.drawText(feels.c_str(), _display.width() / 2, 200, display::TextSize::Small);
   }
 
-  // Condition.
-  _display.drawText(titleCase(data.conditionDescription).c_str(), _display.width() / 2, 182,
-                    display::TextSize::Large);
+  _display.drawText(titleCase(data.conditionDescription).c_str(), _display.width() / 2, 222,
+                    display::TextSize::Small);
 
-  // Separator.
-  _display.drawLine(16, 205, _display.width() - 16, 205, display::Color::White);
+  _display.drawLine(16, 240, _display.width() - 16, 240, display::Color::White);
 
-  // Supporting metrics.
-  drawTextAlignedMetric("Humidity", String(data.humidityPercent) + " %", 225);
-  drawTextAlignedMetric("Wind", String(data.windSpeed, 1) + " m/s", 246);
-  drawTextAlignedMetric("Direction", String(data.windDirection) + " deg", 267);
+  drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 246);
+  drawTextAlignedMetric(label("Wind", "Viento"), String(data.windSpeed, 1) + " m/s", 262);
+  drawTextAlignedMetric(label("Direction", "Direccion"), String(data.windDirection) + " deg", 278);
 }
 
 void WeatherScreen::drawTextAlignedMetric(const char* label, const String& value, int32_t y)
@@ -82,7 +144,132 @@ void WeatherScreen::drawTextAlignedMetric(const char* label, const String& value
 
 void WeatherScreen::drawFooter(const String& text, display::Color barColor)
 {
-  _display.drawText(text.c_str(), _display.width() / 2, 296, display::TextSize::Small);
+  (void)barColor;
+  _display.drawText(text.c_str(), _display.width() / 2, 306, display::TextSize::Small);
+}
+
+const char* WeatherScreen::label(const char* en, const char* es) const
+{
+  return (_language == Language::Spanish) ? es : en;
+}
+
+void WeatherScreen::clearZone()
+{
+  _display.fillRect(0, kZoneY, _display.width(), kZoneH, display::Color::Black);
+}
+
+void WeatherScreen::drawScene(unsigned long now)
+{
+  switch (_scene)
+  {
+    case Scene::Sun: drawSun(now); break;
+    case Scene::Clouds: drawClouds(now); break;
+    case Scene::Rain: drawRain(now); break;
+    case Scene::Storm: drawStorm(now); break;
+    case Scene::Snow: drawSnow(now); break;
+    case Scene::Fog: drawFog(now); break;
+    default: break;
+  }
+}
+
+void WeatherScreen::drawSun(unsigned long now)
+{
+  int32_t cx = _display.width() / 2;
+  int32_t cy = kZoneY + kZoneH / 2;
+
+  _display.fillCircle(cx, cy, 26, display::Color::Yellow);
+
+  double base = (now / 4000.0) * 2.0 * M_PI;
+  for (int k = 0; k < 8; k++)
+  {
+    double a = base + k * 2.0 * M_PI / 8.0;
+    int32_t x0 = cx + (int32_t)(cos(a) * 32.0);
+    int32_t y0 = cy + (int32_t)(sin(a) * 32.0);
+    int32_t x1 = cx + (int32_t)(cos(a) * 42.0);
+    int32_t y1 = cy + (int32_t)(sin(a) * 42.0);
+    _display.drawLine(x0, y0, x1, y1, display::Color::Yellow);
+  }
+}
+
+void WeatherScreen::drawClouds(unsigned long now)
+{
+  drawCloudShape(drift(now, 20, 0), 88);
+  drawCloudShape(drift(now, 32, 130), 60);
+}
+
+void WeatherScreen::drawRain(unsigned long now)
+{
+  drawCloudShape(drift(now, 25, 0), 66);
+
+  for (int i = 0; i < 14; i++)
+  {
+    int32_t x = (i * 31 + (int32_t)(now / 12)) % _display.width();
+    int32_t y = kZoneY + ((int32_t)(now / 4) + i * 47) % (kZoneH - 36);
+    _display.drawLine(x, y, x - 2, y + 8, display::Color::Cyan);
+  }
+}
+
+void WeatherScreen::drawStorm(unsigned long now)
+{
+  drawCloudShape(drift(now, 25, 0), 66);
+
+  if (((now / 250) % 2) == 0)
+  {
+    int32_t cx = _display.width() / 2;
+    int32_t cy = 82;
+    _display.fillTriangle(cx - 6, cy - 14, cx + 6, cy - 14, cx, cy + 16, display::Color::Yellow);
+    _display.fillTriangle(cx - 3, cy + 12, cx + 3, cy + 12, cx, cy + 30, display::Color::Yellow);
+  }
+}
+
+void WeatherScreen::drawSnow(unsigned long now)
+{
+  drawCloudShape(drift(now, 25, 0), 66);
+
+  for (int i = 0; i < 18; i++)
+  {
+    int32_t x = (i * 43 + (int32_t)(now / 9)) % _display.width();
+    int32_t y = kZoneY + ((int32_t)(now / 12) + i * 61) % (kZoneH - 26);
+    _display.fillCircle(x, y, 2, display::Color::White);
+  }
+}
+
+void WeatherScreen::drawFog(unsigned long now)
+{
+  for (int band = 0; band < 3; band++)
+  {
+    int32_t y = kZoneY + 22 + band * 30;
+    int32_t x = drift(now, 50 + band * 20, band * 90);
+    _display.fillRect(x, y, 100, 10, display::Color::Gray);
+  }
+}
+
+void WeatherScreen::drawSpinner(unsigned long now)
+{
+  int32_t cx = _display.width() / 2;
+  int32_t cy = kZoneY + kZoneH / 2;
+
+  double base = (now / 180.0) * 2.0 * M_PI;
+  for (int k = 0; k < 3; k++)
+  {
+    double a = base + k * 2.0 * M_PI / 3.0;
+    int32_t x = cx + (int32_t)(cos(a) * 22.0);
+    int32_t y = cy + (int32_t)(sin(a) * 22.0);
+    _display.fillCircle(x, y, 6, display::Color::White);
+  }
+}
+
+void WeatherScreen::drawCloudShape(int32_t cx, int32_t cy)
+{
+  _display.fillEllipse(cx, cy, 28, 12, display::Color::White);
+  _display.fillCircle(cx - 18, cy - 2, 12, display::Color::White);
+  _display.fillCircle(cx + 16, cy - 4, 10, display::Color::White);
+}
+
+int32_t WeatherScreen::drift(unsigned long now, unsigned long period, int32_t offset) const
+{
+  int32_t span = _display.width() + 140;
+  return (int32_t)((now / period) + offset) % span - 70;
 }
 
 String WeatherScreen::formatTime(unsigned long unixTime) const
