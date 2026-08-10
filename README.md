@@ -47,10 +47,17 @@ upload_port = COM4
 
 ### Serial control
 
-- On boot the firmware runs the display test automatically, then shows the weather screen.
-- Send `r` over serial to re-run the display test on demand.
+- On boot the firmware initializes, connects to Wi-Fi and fetches weather (no automatic color test).
+- Send `r` over serial to run the display diagnostic test (RED/GREEN/BLUE/WHITE) on demand.
 - Send `w` over serial to force an immediate weather refresh (default interval is 15 min).
 - The firmware prints an `alive` heartbeat every 2 s.
+
+### Boot sequence
+
+1. Display initializes.
+2. Wi-Fi scan runs (serial: visible SSIDs + target visibility diagnostic).
+3. Screen shows connection progress: `Conectando a <SSID>...` + `Intento N` → `Conectado <IP>` → `Actualizando clima...`.
+4. Weather screen appears (with condition animation) once data is fetched.
 
 ### Display test sequence
 

@@ -11,23 +11,29 @@ WeatherScreen::WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetS
 {
 }
 
-void WeatherScreen::renderLoading(bool offline)
+void WeatherScreen::renderConnecting(const char* ssid, int attempt, bool connected, const char* ip)
 {
   _display.clear();
 
-  if (offline)
+  if (connected)
   {
-    drawHeader(label("Weather", "Clima"), display::Color::Yellow);
-    _display.drawText(label("No connection", "Sin conexion"), _display.width() / 2, 180,
+    drawHeader(label("Weather", "Clima"), display::Color::Blue);
+    _display.drawText(label("Connected", "Conectado"), _display.width() / 2, 172,
                       display::TextSize::Large);
-    _display.drawText(label("Wi-Fi unavailable", "Wi-Fi no disponible"), _display.width() / 2, 210,
-                      display::TextSize::Small);
+    _display.drawText(ip, _display.width() / 2, 202, display::TextSize::Small);
+    _display.drawText(label("Updating weather...", "Actualizando clima..."), _display.width() / 2,
+                      224, display::TextSize::Small);
   }
   else
   {
-    drawHeader(label("Weather", "Clima"), display::Color::Blue);
-    _display.drawText(label("Updating...", "Actualizando..."), _display.width() / 2, 180,
+    drawHeader(label("Weather", "Clima"), display::Color::Yellow);
+    _display.drawText(label("Connecting...", "Conectando..."), _display.width() / 2, 172,
                       display::TextSize::Large);
+    _display.drawText(ssid, _display.width() / 2, 202, display::TextSize::Small);
+    {
+      String attemptText = String(label("Attempt ", "Intento ")) + String(attempt);
+      _display.drawText(attemptText.c_str(), _display.width() / 2, 224, display::TextSize::Small);
+    }
   }
 
   _hasData = false;

@@ -90,26 +90,38 @@ namespace
 
       logging::info(TAG, "requesting current weather");
 
-      http::SecureClient client;
-      http::Response response;
-      if (!client.get(url, response))
+      // Retry once on a transient HTTP/TLS failure (flaky uplink); other
+      // errors (401, bad status) are not retried.
+      for (int attempt = 1; attempt <= 2; attempt++)
       {
-        logging::info(TAG, "request failed: HTTP/TLS/timeout error");
-        return WeatherError::HttpError;
-      }
-
-      if (response.statusCode != 200)
-      {
-        logging::info(TAG, "request failed: HTTP status %d", response.statusCode);
-        if (response.statusCode == 401)
+        http::SecureClient client;
+        http::Response response;
+        if (!client.get(url, response))
         {
-          logging::info(TAG, "invalid API key (401)");
-          return WeatherError::ApiError;
+          if (attempt == 1)
+          {
+            logging::info(TAG, "request failed (HTTP/TLS/timeout), retrying once");
+            continue;
+          }
+          logging::info(TAG, "request failed: HTTP/TLS/timeout error");
+          return WeatherError::HttpError;
         }
-        return WeatherError::BadStatus;
+
+        if (response.statusCode != 200)
+        {
+          logging::info(TAG, "request failed: HTTP status %d", response.statusCode);
+          if (response.statusCode == 401)
+          {
+            logging::info(TAG, "invalid API key (401)");
+            return WeatherError::ApiError;
+          }
+          return WeatherError::BadStatus;
+        }
+
+        return parse(response.body, data);
       }
 
-      return parse(response.body, data);
+      return WeatherError::HttpError;
     }
 
   private:

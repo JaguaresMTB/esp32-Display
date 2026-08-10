@@ -47,6 +47,24 @@ namespace
     void begin() override
     {
       logging::info(TAG, "initialization");
+
+      // TEMP DIAGNOSTIC: scan for visible networks
+      {
+        int n = WiFi.scanNetworks();
+        logging::info(TAG, "scan: %d network(s) found", n);
+        bool targetVisible = false;
+        for (int i = 0; i < n; i++)
+        {
+          String ssid = WiFi.SSID(i);
+          logging::info(TAG, "  %s (%d dBm)", ssid.c_str(), (int)WiFi.RSSI(i));
+          if (ssid == WIFI_SSID)
+          {
+            targetVisible = true;
+          }
+        }
+        logging::info(TAG, "target %s: %s", WIFI_SSID, targetVisible ? "VISIBLE" : "NOT FOUND");
+      }
+
       if (WIFI_SSID[0] == '\0')
       {
         logging::info(TAG, "no credentials configured; skipping connection");
@@ -92,6 +110,8 @@ namespace
     String ssid() const override { return WiFi.SSID(); }
     String localIp() const override { return WiFi.localIP().toString(); }
     int16_t rssi() const override { return WiFi.RSSI(); }
+    int retryCount() const override { return _retries; }
+    const char* configuredSsid() const override { return WIFI_SSID; }
 
   private:
     State _state = State::Disconnected;

@@ -45,14 +45,12 @@ bool Application::begin()
   }
   logging::info("DISPLAY", "display initialization complete");
 
-  _displayTest.run();
-
   _network.begin();
   _weather.begin();
 
-  _weatherScreen.renderLoading(false);
+  _weatherScreen.renderConnecting(_network.configuredSsid(), 1, false, "");
   _lastUiState = UiState::Loading;
-  _lastLoadingOffline = false;
+  _lastLoadingAttempt = 1;
 
   return true;
 }
@@ -145,7 +143,7 @@ void Application::logWeather(const weather::WeatherData& data) const
 void Application::renderWeatherState()
 {
   const bool connected = _network.isConnected();
-  const bool offline = _network.state() == networking::State::Disconnected;
+  const int attempt = _network.retryCount() + 1;
 
   UiState target;
   if (!_hasWeatherData)
@@ -167,9 +165,9 @@ void Application::renderWeatherState()
 
   const unsigned long stamp = _hasWeatherData ? _weatherData.timestamp : 0;
   bool shouldRedraw = (target != _lastUiState || stamp != _lastRenderedStamp);
-  if (target == UiState::Loading && offline != _lastLoadingOffline)
+  if (target == UiState::Loading && attempt != _lastLoadingAttempt)
   {
-    _lastLoadingOffline = offline;
+    _lastLoadingAttempt = attempt;
     shouldRedraw = true;
   }
 
@@ -181,7 +179,8 @@ void Application::renderWeatherState()
     switch (target)
     {
       case UiState::Loading:
-        _weatherScreen.renderLoading(offline);
+        _weatherScreen.renderConnecting(_network.configuredSsid(), attempt, connected,
+                                        _network.localIp().c_str());
         break;
       case UiState::Ready:
         _weatherScreen.render(_weatherData);

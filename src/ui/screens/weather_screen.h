@@ -19,8 +19,10 @@ namespace ui
   public:
     WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetSeconds, Language language);
 
-    // No weather data yet. `offline` indicates Wi-Fi is unavailable.
-    void renderLoading(bool offline);
+    // No weather data yet. Shows connection progress: the target SSID and
+    // attempt number while connecting, or "connected + updating weather" once
+    // Wi-Fi is up but no data has arrived.
+    void renderConnecting(const char* ssid, int attempt, bool connected, const char* ip);
 
     // Valid weather data (success state).
     void render(const weather::WeatherData& data);

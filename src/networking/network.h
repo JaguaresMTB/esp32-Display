@@ -32,6 +32,12 @@ namespace networking
     virtual String ssid() const = 0;
     virtual String localIp() const = 0;
     virtual int16_t rssi() const = 0;
+
+    // Consecutive failed connection attempts (0 on the first attempt).
+    virtual int retryCount() const = 0;
+
+    // The configured (target) SSID, even before a connection is established.
+    virtual const char* configuredSsid() const = 0;
   };
 
   // Factory: returns the singleton network instance.

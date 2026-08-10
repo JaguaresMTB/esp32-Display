@@ -83,6 +83,19 @@ Fixes (in `application` + `weather_screen`):
 
 Verified on-device: with the AP's internet restored, the device recovered and displayed weather within the faster retry window.
 
+## Follow-up 2 (boot-flow rework + connection diagnostics)
+
+Reported: device "stuck" / "not connecting" after a power cycle. The mesh AP's Wi-Fi was reachable (device associated and got an IP), but outbound TLS/DNS to OpenWeather was intermittently failing (`start_ssl_client: -1`, `-29312 SSL EOF`, DNS failures).
+
+Flow rework (in `application`, `network`, `weather_screen`, `weather`):
+- **No automatic display diagnostic test at boot** — the RED/GREEN/BLUE/WHITE test now runs only via the `r` serial command. Boot goes straight to connecting.
+- **Connection-status screen** (`renderConnecting(ssid, attempt, connected, ip)`): shows `Conectando a <SSID>...` + `Intento N` (yellow) while connecting, then `Conectado <IP>` + `Actualizando clima...` (blue) once Wi-Fi is up. Redrawn when the attempt count changes.
+- **Boot Wi-Fi scan diagnostic** (`NetworkImpl::begin()`): prints all visible SSIDs and whether the target is visible — distinguishes "AP not in range" from "association/TLS failure".
+- **TLS retry-once** in `OpenWeatherProvider`: transient HTTP/TLS failures are retried once immediately; 401/bad-status are not retried.
+- `INetwork` gained `retryCount()` and `configuredSsid()` for the status screen.
+
+Verified on-device: boot scan shows `HouseMesh` visible (-61 dBm), the device connects (IP assigned), and the connection-status screen tracks attempts. The remaining TLS failures were traced to the AP's unstable internet uplink (not the firmware); the device retries automatically and recovers when the uplink returns.
+
 ## Recommended next steps
 
 - Sprint 7 candidates: NVS persistence of last-known weather, forecast/extra fields, or TLS certificate hardening.

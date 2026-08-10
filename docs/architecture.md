@@ -84,6 +84,8 @@ Defined in `src/networking/network.h` (`networking::INetwork`):
 | `String ssid()` | Connected network name |
 | `String localIp()` | Assigned IPv4 address |
 | `int16_t rssi()` | Signal strength in dBm |
+| `int retryCount()` | Consecutive failed attempts (0 on the first attempt) |
+| `const char* configuredSsid()` | Target SSID (before/independent of connection) |
 
 The concrete `NetworkImpl` is hidden in `network.cpp` and exposed through `networking::getNetwork()`. Application code never calls `WiFi.*`.
 
@@ -166,6 +168,7 @@ struct WeatherData {
 - `src/networking/http.h/.cpp` provides `http::SecureClient::get(url, Response&)`, a minimal HTTPS GET transport built on `WiFiClientSecure` + `HTTPClient` (Arduino core libraries).
 - It returns `{ statusCode, body }`; status 0 means connection/TLS/timeout failure.
 - TLS is currently used in **insecure mode** (`setInsecure()` — encrypted but no certificate verification); pinned certificates are a future hardening step.
+- The weather provider retries the request **once** on a transient HTTP/TLS failure (flaky uplink); API errors (401, bad status) are not retried.
 - Application code never instantiates an HTTP client; only the weather provider does.
 
 ### Weather configuration / secrets strategy
@@ -187,7 +190,7 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 
 | Method | Purpose |
 |--------|---------|
-| `renderLoading(bool offline)` | No data yet — `Actualizando...` (blue) or `Sin conexion` (yellow, when Wi-Fi down) |
+| `renderConnecting(ssid, attempt, connected, ip)` | No data yet — connection progress: `Conectando a <SSID>...` + `Intento N` (yellow), or `Conectado <IP>` + `Actualizando clima...` (blue) |
 | `render(const WeatherData&)` | Full weather screen (success) |
 | `renderOffline(const WeatherData&)` | Last valid data kept + `Wi-Fi offline` + last update time |
 | `renderUpdateFailed(const WeatherData&)` | Last valid data kept + `Update failed` + last update time |
@@ -245,8 +248,17 @@ No LovyanGFX types are exposed through the UI layer.
   - `kWeatherRetryIntervalMs = 5 min` after a failed request once data exists.
   - `kInitialRetryIntervalMs = 30 s` after a failed request while **no data** exists yet (fast recovery after a network outage).
   - Serial command `w` forces an immediate refresh; `r` re-runs the display diagnostic.
-- **State selection** — `Loading` (no data; shows `Sin conexion` when Wi-Fi is in the `Disconnected` state), `Ready` (data + connected + last fetch ok), `Offline` (data + not connected), `UpdateFailed` (data + connected + last fetch failed). The screen is redrawn when the state, the data timestamp, or the loading offline flag changes.
+- **State selection** — no data → connection-status screen (`renderConnecting`); data + connected + last fetch ok → `Ready`; data + not connected → `Offline`; data + connected + last fetch failed → `UpdateFailed`. Redrawn when the state, the data timestamp, or the connect attempt count changes.
 - **Animation** — `_weatherScreen.updateAnimation(millis())` runs every loop iteration; the screen throttles internally (~12 fps).
+
+### Boot flow
+
+1. Serial + display init.
+2. **Wi-Fi scan diagnostic** (in `NetworkImpl::begin()`) logs visible SSIDs and whether the target is visible — useful to distinguish "AP not in range" from "association failed".
+3. Non-blocking Wi-Fi connect; the screen shows `Conectando a <SSID>...` + `Intento N`, then `Conectado <IP>` + `Actualizando clima...`.
+4. Weather is fetched (with one TLS retry); the weather screen appears once data arrives.
+
+The display diagnostic test (RED/GREEN/BLUE/WHITE) no longer runs at boot — it is available on demand via the `r` serial command.
 
 The main loop stays responsive: Wi-Fi, refresh scheduling, and rendering are all driven from `Application::update()` without blocking loops.
 

@@ -48,7 +48,7 @@ namespace app
     weather::WeatherData _weatherData;
     UiState _lastUiState = UiState::None;
     unsigned long _lastRenderedStamp = 0;
-    bool _lastLoadingOffline = false;
+    int _lastLoadingAttempt = 0;
 
     void fetchWeather();
     void renderWeatherState();
