@@ -5,13 +5,16 @@
 #include "diagnostics/display_test.h"
 #include "hardware/display/display.h"
 #include "networking/network.h"
+#include "services/weather/weather.h"
 
-// Composition root: wire the concrete display and network implementations to
-// the application. No display- or network-specific logic lives here.
+// Composition root: wire the concrete display, network, and weather
+// implementations to the application. No display/network/weather logic lives
+// here.
 static display::IDisplay& g_display = display::getDisplay();
 static diagnostics::DisplayTest g_displayTest(g_display);
 static networking::INetwork& g_network = networking::getNetwork();
-static app::Application g_application(g_display, g_displayTest, g_network);
+static weather::IWeatherService& g_weather = weather::getWeatherService();
+static app::Application g_application(g_display, g_displayTest, g_network, g_weather);
 
 void setup(void)
 {

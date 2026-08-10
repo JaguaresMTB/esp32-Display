@@ -11,10 +11,11 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Serial (USB-C) | PASS |
 | Display init (software) | PASS |
 | Display rendering (visual) | **PASS** — color cycle and text confirmed on screen |
-| Firmware architecture | **PASS** — layered: main -> application -> display/network abstractions |
+| Firmware architecture | **PASS** — layered: main -> application -> display/network/weather abstractions |
 | Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
+| OpenWeather | **PASS** — HTTPS request, JSON parse, WeatherData populated (25.4 C in Mérida) |
 
-See [Sprint 1 close-out](docs/sprints/001-hardware-validation.md), [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md), and [Sprint 3 — Wi-Fi Foundation](docs/sprints/003-wifi-foundation.md).
+See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3 — Wi-Fi Foundation](docs/sprints/003-wifi-foundation.md), and [Sprint 4 — OpenWeather Integration](docs/sprints/004-openweather-integration.md).
 
 ## Hardware
 
@@ -66,6 +67,17 @@ cp src/config/wifi_credentials.example.h src/config/wifi_credentials.h
 
 `src/config/wifi_credentials.h` is never committed and the password is never logged.
 
+### OpenWeather setup
+
+OpenWeather API key + location are provided via a local, git-ignored file:
+
+```sh
+cp src/config/weather_credentials.example.h src/config/weather_credentials.h
+# edit src/config/weather_credentials.h -> set OPENWEATHER_API_KEY and coordinates
+```
+
+`src/config/weather_credentials.h` is never committed and the API key is never logged. After Wi-Fi connects, the application performs one weather request and logs the result (temperature, humidity, pressure, wind, condition).
+
 ## Project structure
 
 ```
@@ -77,7 +89,9 @@ esp32-Display/
 │   ├── config/
 │   │   ├── pins.h                # GPIO mapping + display params (single source of truth)
 │   │   ├── wifi_credentials.example.h  # Wi-Fi credentials template (tracked)
-│   │   └── wifi_credentials.h    # real credentials (LOCAL, gitignored)
+│   │   ├── wifi_credentials.h    # real credentials (LOCAL, gitignored)
+│   │   ├── weather_credentials.example.h # OpenWeather key + location template (tracked)
+│   │   └── weather_credentials.h # real key + coordinates (LOCAL, gitignored)
 │   ├── common/
 │   │   └── logging.h             # serial logging convention
 │   ├── hardware/
@@ -86,7 +100,13 @@ esp32-Display/
 │   │       └── display.cpp       # LovyanGFX/ST7789 implementation
 │   ├── networking/
 │   │   ├── network.h             # Wi-Fi abstraction (INetwork)
-│   │   └── network.cpp           # Arduino WiFi implementation (state machine)
+│   │   ├── network.cpp           # Arduino WiFi implementation (state machine)
+│   │   ├── http.h                # HTTPS GET transport (http::SecureClient)
+│   │   └── http.cpp              # WiFiClientSecure + HTTPClient implementation
+│   ├── services/
+│   │   └── weather/
+│   │       ├── weather.h         # weather abstraction (IWeatherService, WeatherData)
+│   │       └── weather.cpp       # OpenWeatherProvider + JSON parsing
 │   ├── application/
 │   │   ├── application.h         # application lifecycle
 │   │   └── application.cpp
@@ -101,7 +121,8 @@ esp32-Display/
         ├── 000-TEMPLATE.md
         ├── 001-hardware-validation.md
         ├── 002-firmware-architecture-foundation.md
-        └── 003-wifi-foundation.md
+        ├── 003-wifi-foundation.md
+        └── 004-openweather-integration.md
 ```
 
 ## Configuration

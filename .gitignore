@@ -6,3 +6,6 @@
 
 # Local Wi-Fi credentials (never commit real credentials)
 src/config/wifi_credentials.h
+
+# Local OpenWeather credentials (never commit real API key)
+src/config/weather_credentials.h
