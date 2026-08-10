@@ -12,6 +12,15 @@ namespace networking
     Reconnecting,
   };
 
+  // Sub-stage during a connection attempt, for the boot checklist display.
+  enum class ConnectStage
+  {
+    None,
+    Connecting,
+    Authorizing,
+    Connected,
+  };
+
   // Wi-Fi abstraction. Application code depends only on this interface and
   // never on the Arduino WiFi API (WiFi.h). Implemented in network.cpp.
   class INetwork
@@ -38,6 +47,9 @@ namespace networking
 
     // The configured (target) SSID, even before a connection is established.
     virtual const char* configuredSsid() const = 0;
+
+    // Progress sub-stage during attempts (for the boot checklist).
+    virtual ConnectStage connectStage() const = 0;
   };
 
   // Factory: returns the singleton network instance.

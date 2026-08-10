@@ -54,10 +54,15 @@ upload_port = COM4
 
 ### Boot sequence
 
-1. Display initializes.
-2. Wi-Fi scan runs (serial: visible SSIDs + target visibility diagnostic).
-3. Screen shows connection progress: `Conectando a <SSID>...` + `Intento N` → `Conectado <IP>` → `Actualizando clima...`.
-4. Weather screen appears (with condition animation) once data is fetched.
+1. Display initializes; the persistent boot log is dumped to serial.
+2. Screen shows a **step-by-step checklist** (no animation):
+   - `Wi-Fi`: Conectando → Autorizando → Conectado ✓
+   - `Clima`: Conectando → Autorizando → Actualizado ✓
+   - Every row shows its attempt number.
+3. Once weather data arrives, the full weather screen (with condition animation) appears.
+4. A persistent boot/error log (last 10 events) survives unplug/replug and is printed at every boot.
+
+The display diagnostic test (RED/GREEN/BLUE/WHITE) runs only via `r`.
 
 ### Display test sequence
 

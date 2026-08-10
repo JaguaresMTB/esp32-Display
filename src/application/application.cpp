@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "common/error_log.h"
 #include "common/logging.h"
 
 // Timezone offset for the "last update" display (from the local weather config).
@@ -35,6 +36,9 @@ Application::Application(display::IDisplay& display,
 bool Application::begin()
 {
   logging::info(TAG, "application startup");
+  errorlog::begin();
+  errorlog::dump();
+  errorlog::record("boot");
 
   logging::info("DISPLAY", "display initialization start");
   bool ok = _display.init();
@@ -48,9 +52,9 @@ bool Application::begin()
   _network.begin();
   _weather.begin();
 
-  _weatherScreen.renderConnecting(_network.configuredSsid(), 1, false, "");
-  _lastUiState = UiState::Loading;
-  _lastLoadingAttempt = 1;
+  _weatherStage = ui::WeatherScreen::Stage::Pending;
+  _weatherAttempt = 0;
+  forceRenderChecklist();
 
   return true;
 }
@@ -61,11 +65,23 @@ void Application::update()
 
   const bool connected = _network.isConnected();
 
-  // Periodic / on-demand weather refresh. Scheduling is elapsed-time based;
-  // the request itself is a single bounded call.
+  // Periodic / on-demand weather refresh. Scheduling is elapsed-time based.
   if (connected && millis() >= _nextWeatherRefreshAt)
   {
     _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs; // safety default
+
+    if (!_hasWeatherData)
+    {
+      // Step-by-step checklist progress before the first data arrives.
+      _weatherAttempt++;
+      _weatherStage = ui::WeatherScreen::Stage::Connecting;
+      forceRenderChecklist();
+      delay(400);
+      _weatherStage = ui::WeatherScreen::Stage::Authorizing;
+      forceRenderChecklist();
+      delay(400);
+    }
+
     fetchWeather();
   }
 
@@ -108,7 +124,9 @@ void Application::fetchWeather()
     _weatherData = data;
     _hasWeatherData = true;
     _lastWeatherOk = true;
+    _weatherStage = ui::WeatherScreen::Stage::Done;
     _nextWeatherRefreshAt = millis() + kWeatherRefreshIntervalMs;
+    errorlog::record("weather_ok");
     logging::info("WEATHER", "request successful");
     logWeather(data);
     logging::info("WEATHER", "next refresh in %lu s", kWeatherRefreshIntervalMs / 1000);
@@ -116,10 +134,10 @@ void Application::fetchWeather()
   else
   {
     _lastWeatherOk = false;
-    // Retry faster while we still have no data to show; once data exists,
-    // fall back to the longer failure cadence.
+    _weatherStage = ui::WeatherScreen::Stage::Connecting;
     unsigned long retry = _hasWeatherData ? kWeatherRetryIntervalMs : kInitialRetryIntervalMs;
     _nextWeatherRefreshAt = millis() + retry;
+    errorlog::record(("weather_fail " + String(weather::weatherErrorName(result))).c_str());
     logging::info("WEATHER", "request failed: %s (next in %lu s)",
                   weather::weatherErrorName(result), retry / 1000);
   }
@@ -140,10 +158,32 @@ void Application::logWeather(const weather::WeatherData& data) const
   logging::info("WEATHER", "timestamp=%lu", data.timestamp);
 }
 
+void Application::forceRenderChecklist()
+{
+  _lastUiState = UiState::None;
+  renderWeatherState();
+}
+
+ui::WeatherScreen::Stage Application::mapStage(networking::ConnectStage stage)
+{
+  switch (stage)
+  {
+    case networking::ConnectStage::Connecting:
+      return ui::WeatherScreen::Stage::Connecting;
+    case networking::ConnectStage::Authorizing:
+      return ui::WeatherScreen::Stage::Authorizing;
+    case networking::ConnectStage::Connected:
+      return ui::WeatherScreen::Stage::Done;
+    default:
+      return ui::WeatherScreen::Stage::Pending;
+  }
+}
+
 void Application::renderWeatherState()
 {
   const bool connected = _network.isConnected();
-  const int attempt = _network.retryCount() + 1;
+  const int wifiAttempt = _network.retryCount() + 1;
+  const ui::WeatherScreen::Stage wifiStage = mapStage(_network.connectStage());
 
   UiState target;
   if (!_hasWeatherData)
@@ -165,9 +205,12 @@ void Application::renderWeatherState()
 
   const unsigned long stamp = _hasWeatherData ? _weatherData.timestamp : 0;
   bool shouldRedraw = (target != _lastUiState || stamp != _lastRenderedStamp);
-  if (target == UiState::Loading && attempt != _lastLoadingAttempt)
+
+  // Redraw the checklist when any of its inputs change.
+  if (target == UiState::Loading &&
+      (wifiStage != _lastWifiStage || wifiAttempt != _lastWifiAttempt ||
+       _weatherStage != _lastWeatherStage || _weatherAttempt != _lastWeatherAttempt))
   {
-    _lastLoadingAttempt = attempt;
     shouldRedraw = true;
   }
 
@@ -175,12 +218,16 @@ void Application::renderWeatherState()
   {
     _lastUiState = target;
     _lastRenderedStamp = stamp;
+    _lastWifiStage = wifiStage;
+    _lastWifiAttempt = wifiAttempt;
+    _lastWeatherStage = _weatherStage;
+    _lastWeatherAttempt = _weatherAttempt;
 
     switch (target)
     {
       case UiState::Loading:
-        _weatherScreen.renderConnecting(_network.configuredSsid(), attempt, connected,
-                                        _network.localIp().c_str());
+        _weatherScreen.renderChecklist(wifiStage, wifiAttempt, _weatherStage, _weatherAttempt,
+                                       connected ? _network.localIp().c_str() : "");
         break;
       case UiState::Ready:
         _weatherScreen.render(_weatherData);

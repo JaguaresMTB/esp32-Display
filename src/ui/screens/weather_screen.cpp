@@ -11,33 +11,34 @@ WeatherScreen::WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetS
 {
 }
 
-void WeatherScreen::renderConnecting(const char* ssid, int attempt, bool connected, const char* ip)
+void WeatherScreen::renderChecklist(Stage wifiStage, int wifiAttempt, Stage weatherStage,
+                                    int weatherAttempt, const char* ip)
 {
   _display.clear();
 
-  if (connected)
+  _display.fillRect(0, 0, _display.width(), 30, display::Color::Blue);
+  _display.drawText(label("Weather", "Clima"), _display.width() / 2, 15, display::TextSize::Medium);
+
+  // Wi-Fi section.
+  drawChecklistSectionTitle(label("Wi-Fi", "Wi-Fi"), wifiAttempt, 48);
+  drawChecklistRow(label("Connecting", "Conectando"), stepStage(wifiStage, 1), wifiAttempt, 76);
+  drawChecklistRow(label("Authorizing", "Autorizando"), stepStage(wifiStage, 2), wifiAttempt, 96);
+  drawChecklistRow(label("Connected", "Conectado"), stepStage(wifiStage, 3), wifiAttempt, 116);
+
+  // Weather section.
+  drawChecklistSectionTitle(label("Weather", "Clima"), weatherAttempt, 150);
+  drawChecklistRow(label("Connecting", "Conectando"), stepStage(weatherStage, 1), weatherAttempt, 178);
+  drawChecklistRow(label("Authorizing", "Autorizando"), stepStage(weatherStage, 2), weatherAttempt, 198);
+  drawChecklistRow(label("Updated", "Actualizado"), stepStage(weatherStage, 3), weatherAttempt, 218);
+
+  // Footer: IP once Wi-Fi is up, otherwise blank.
+  if (ip != nullptr && ip[0] != '\0')
   {
-    drawHeader(label("Weather", "Clima"), display::Color::Blue);
-    _display.drawText(label("Connected", "Conectado"), _display.width() / 2, 150,
-                      display::TextSize::Medium);
-    _display.drawText(ip, _display.width() / 2, 185, display::TextSize::Medium);
-    _display.drawText(label("Updating weather...", "Actualizando..."), _display.width() / 2, 220,
-                      display::TextSize::Medium);
-  }
-  else
-  {
-    drawHeader(label("Weather", "Clima"), display::Color::Orange);
-    _display.drawText(label("Connecting...", "Conectando..."), _display.width() / 2, 150,
-                      display::TextSize::Medium);
-    _display.drawText(ssid, _display.width() / 2, 185, display::TextSize::Medium);
-    {
-      String attemptText = String(label("Attempt ", "Intento ")) + String(attempt);
-      _display.drawText(attemptText.c_str(), _display.width() / 2, 220, display::TextSize::Medium);
-    }
+    String ipText = String(label("IP: ", "IP: ")) + ip;
+    _display.drawText(ipText.c_str(), _display.width() / 2, 306, display::TextSize::Small);
   }
 
   _hasData = false;
-  _loading = true;
   _scene = Scene::None;
 }
 
@@ -47,7 +48,6 @@ void WeatherScreen::render(const weather::WeatherData& data)
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Blue);
 
   _hasData = true;
-  _loading = false;
   _scene = sceneFor(data.conditionId);
 
   drawWeatherBody(data);
@@ -61,7 +61,6 @@ void WeatherScreen::renderOffline(const weather::WeatherData& data)
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Orange);
 
   _hasData = true;
-  _loading = false;
   _scene = sceneFor(data.conditionId);
 
   drawWeatherBody(data);
@@ -76,7 +75,6 @@ void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Red);
 
   _hasData = true;
-  _loading = false;
   _scene = sceneFor(data.conditionId);
 
   drawWeatherBody(data);
@@ -87,6 +85,10 @@ void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
 
 void WeatherScreen::updateAnimation(unsigned long now)
 {
+  if (!_hasData)
+  {
+    return; // checklist is static; no animation while no data
+  }
   if (now - _lastFrame < kFrameIntervalMs)
   {
     return;
@@ -94,14 +96,7 @@ void WeatherScreen::updateAnimation(unsigned long now)
   _lastFrame = now;
 
   clearZone();
-  if (_loading)
-  {
-    drawSpinner(now);
-  }
-  else if (_hasData)
-  {
-    drawScene(now);
-  }
+  drawScene(now);
 }
 
 WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition)
@@ -166,9 +161,81 @@ void WeatherScreen::drawFooter(const String& text, display::Color barColor)
   _display.drawText(text.c_str(), _display.width() / 2, 312, display::TextSize::Small);
 }
 
+void WeatherScreen::drawChecklistSectionTitle(const char* title, int attempt, int32_t y)
+{
+  _display.drawTextAligned(title, 12, y, display::TextSize::Medium, display::TextAlign::Left);
+  String attemptText = attemptString(attempt);
+  if (attemptText.length() > 0)
+  {
+    _display.drawTextAligned(attemptText.c_str(), _display.width() - 12, y,
+                             display::TextSize::Medium, display::TextAlign::Right);
+  }
+}
+
+void WeatherScreen::drawChecklistRow(const char* label, Stage stage, int attempt, int32_t y)
+{
+  int32_t ix = 16;
+  switch (stage)
+  {
+    case Stage::Pending:
+      _display.fillCircle(ix, y, 4, display::Color::Gray);
+      break;
+    case Stage::Connecting:
+    case Stage::Authorizing:
+      _display.fillCircle(ix, y, 5, display::Color::Orange);
+      break;
+    case Stage::Done:
+      drawCheckMark(ix, y);
+      break;
+  }
+
+  _display.drawTextAligned(label, 32, y, display::TextSize::Small, display::TextAlign::Left);
+  String attemptText = attemptString(attempt);
+  if (attemptText.length() > 0)
+  {
+    _display.drawTextAligned(attemptText.c_str(), _display.width() - 12, y,
+                             display::TextSize::Small, display::TextAlign::Right);
+  }
+}
+
+void WeatherScreen::drawCheckMark(int32_t x, int32_t y)
+{
+  _display.drawLine(x - 6, y, x - 1, y + 5, display::Color::Green);
+  _display.drawLine(x - 1, y + 5, x + 6, y - 4, display::Color::Green);
+}
+
+WeatherScreen::Stage WeatherScreen::stepStage(Stage overall, int step)
+{
+  switch (overall)
+  {
+    case Stage::Pending:
+      return Stage::Pending;
+    case Stage::Connecting:
+      return step == 1 ? Stage::Connecting : Stage::Pending;
+    case Stage::Authorizing:
+      if (step == 1)
+      {
+        return Stage::Done;
+      }
+      return step == 2 ? Stage::Connecting : Stage::Pending;
+    case Stage::Done:
+      return Stage::Done;
+  }
+  return Stage::Pending;
+}
+
 const char* WeatherScreen::label(const char* en, const char* es) const
 {
   return (_language == Language::Spanish) ? es : en;
+}
+
+String WeatherScreen::attemptString(int attempt) const
+{
+  if (attempt < 1)
+  {
+    return String("");
+  }
+  return String(label("Attempt ", "Intento ")) + String(attempt);
 }
 
 void WeatherScreen::clearZone()
@@ -259,21 +326,6 @@ void WeatherScreen::drawFog(unsigned long now)
     int32_t y = kZoneY + 6 + band * 22;
     int32_t x = drift(now, 50 + band * 20, band * 90);
     _display.fillRect(x, y, 100, 10, display::Color::Gray);
-  }
-}
-
-void WeatherScreen::drawSpinner(unsigned long now)
-{
-  int32_t cx = _display.width() / 2;
-  int32_t cy = kZoneY + kZoneH / 2;
-
-  double base = (now / 180.0) * 2.0 * M_PI;
-  for (int k = 0; k < 3; k++)
-  {
-    double a = base + k * 2.0 * M_PI / 3.0;
-    int32_t x = cx + (int32_t)(cos(a) * 22.0);
-    int32_t y = cy + (int32_t)(sin(a) * 22.0);
-    _display.fillCircle(x, y, 6, display::Color::White);
   }
 }
 

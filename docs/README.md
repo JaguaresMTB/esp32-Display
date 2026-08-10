@@ -10,6 +10,7 @@
 - [Sprint 4 — OpenWeather Integration](sprints/004-openweather-integration.md) — completed sprint.
 - [Sprint 5 — Weather Display UI and Periodic Refresh](sprints/005-weather-display-ui.md) — completed sprint.
 - [Sprint 6 — Weather Animation and Spanish UI](sprints/006-weather-animation-i18n.md) — completed sprint.
+- [Sprint 7 — Boot Checklist and Persistent Error Log](sprints/007-boot-checklist-error-log.md) — completed sprint.
 - [Sprint template](sprints/000-TEMPLATE.md) — template for future sprint documents.
 
 ## Convention: sprint documentation

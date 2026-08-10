@@ -17,12 +17,16 @@ namespace ui
   class WeatherScreen
   {
   public:
-    WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetSeconds, Language language);
+    // Progress stage for the boot checklist.
+    enum class Stage
+    {
+      Pending,
+      Connecting,
+      Authorizing,
+      Done,
+    };
 
-    // No weather data yet. Shows connection progress: the target SSID and
-    // attempt number while connecting, or "connected + updating weather" once
-    // Wi-Fi is up but no data has arrived.
-    void renderConnecting(const char* ssid, int attempt, bool connected, const char* ip);
+    WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetSeconds, Language language);
 
     // Valid weather data (success state).
     void render(const weather::WeatherData& data);
@@ -33,9 +37,13 @@ namespace ui
     // Keep last valid data, indicate the last weather update failed.
     void renderUpdateFailed(const weather::WeatherData& data);
 
-    // Called every loop; throttles internally and redraws only the animation
-    // zone. Shows a spinner while loading, or a condition-based scene when
-    // weather data is available.
+    // No data yet — step-by-step boot checklist (Wi-Fi + weather sections)
+    // with attempt numbers. No animation.
+    void renderChecklist(Stage wifiStage, int wifiAttempt, Stage weatherStage,
+                         int weatherAttempt, const char* ip);
+
+    // Called every loop; throttled internally and redraws only the animation
+    // zone. Does nothing while no weather data exists (checklist is static).
     void updateAnimation(unsigned long now);
 
   private:
@@ -59,18 +67,23 @@ namespace ui
     Language _language;
 
     bool _hasData = false;
-    bool _loading = false;
     Scene _scene = Scene::None;
     unsigned long _lastFrame = 0;
 
     static Scene sceneFor(weather::Condition condition);
+    static Stage stepStage(Stage overall, int step);
 
     void drawHeader(const char* title, display::Color barColor);
     void drawWeatherBody(const weather::WeatherData& data);
     void drawFooter(const String& text, display::Color barColor);
     void drawTextAlignedMetric(const char* label, const String& value, int32_t y);
 
+    void drawChecklistSectionTitle(const char* title, int attempt, int32_t y);
+    void drawChecklistRow(const char* label, Stage stage, int attempt, int32_t y);
+    void drawCheckMark(int32_t x, int32_t y);
+
     const char* label(const char* en, const char* es) const;
+    String attemptString(int attempt) const;
 
     void clearZone();
     void drawScene(unsigned long now);
@@ -80,7 +93,6 @@ namespace ui
     void drawStorm(unsigned long now);
     void drawSnow(unsigned long now);
     void drawFog(unsigned long now);
-    void drawSpinner(unsigned long now);
     void drawCloudShape(int32_t cx, int32_t cy);
 
     int32_t drift(unsigned long now, unsigned long period, int32_t offset) const;

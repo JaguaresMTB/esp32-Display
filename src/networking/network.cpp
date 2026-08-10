@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
+#include "common/error_log.h"
 #include "common/logging.h"
 
 // Real credentials come from src/config/wifi_credentials.h (gitignored).
@@ -28,6 +29,7 @@ namespace
   const unsigned long BACKOFF_BASE_MS = 5000;
   const unsigned long BACKOFF_MAX_MS = 60000;
   const int BACKOFF_MAX_SHIFT = 6;
+  const unsigned long AUTHORIZE_DELAY_MS = 3000;
 
   const char* stateToString(State s)
   {
@@ -47,24 +49,6 @@ namespace
     void begin() override
     {
       logging::info(TAG, "initialization");
-
-      // TEMP DIAGNOSTIC: scan for visible networks
-      {
-        int n = WiFi.scanNetworks();
-        logging::info(TAG, "scan: %d network(s) found", n);
-        bool targetVisible = false;
-        for (int i = 0; i < n; i++)
-        {
-          String ssid = WiFi.SSID(i);
-          logging::info(TAG, "  %s (%d dBm)", ssid.c_str(), (int)WiFi.RSSI(i));
-          if (ssid == WIFI_SSID)
-          {
-            targetVisible = true;
-          }
-        }
-        logging::info(TAG, "target %s: %s", WIFI_SSID, targetVisible ? "VISIBLE" : "NOT FOUND");
-      }
-
       if (WIFI_SSID[0] == '\0')
       {
         logging::info(TAG, "no credentials configured; skipping connection");
@@ -95,6 +79,7 @@ namespace
           if (WiFi.status() != WL_CONNECTED)
           {
             logging::info(TAG, "disconnected");
+            errorlog::record("wifi_disconnected");
             _retries = 0;
             scheduleRetry(State::Reconnecting);
           }
@@ -113,6 +98,20 @@ namespace
     int retryCount() const override { return _retries; }
     const char* configuredSsid() const override { return WIFI_SSID; }
 
+    ConnectStage connectStage() const override
+    {
+      switch (_state)
+      {
+        case State::Connected:
+          return ConnectStage::Connected;
+        case State::Connecting:
+          return (millis() - _attemptStart) < AUTHORIZE_DELAY_MS ? ConnectStage::Connecting
+                                                                 : ConnectStage::Authorizing;
+        default:
+          return ConnectStage::None;
+      }
+    }
+
   private:
     State _state = State::Disconnected;
     unsigned long _attemptStart = 0;
@@ -124,6 +123,7 @@ namespace
       _state = State::Connecting;
       _attemptStart = millis();
       logging::info(TAG, "%s (retry=%d)", stateToString(next), _retries);
+      errorlog::record(("wifi_connecting " + String(_retries + 1)).c_str());
       WiFi.disconnect();
       WiFi.mode(WIFI_STA);
       WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -137,6 +137,7 @@ namespace
         _state = State::Connected;
         _retries = 0;
         logging::info(TAG, "connected");
+        errorlog::record("wifi_connected");
         logging::info(TAG, "ssid=%s ip=%s rssi=%d dBm",
                       ssid().c_str(), localIp().c_str(), (int)rssi());
         return;
@@ -145,6 +146,7 @@ namespace
       if (status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL)
       {
         logging::info(TAG, "connect failed (status=%d)", (int)status);
+        errorlog::record("wifi_fail");
         scheduleRetry(State::Disconnected);
         return;
       }

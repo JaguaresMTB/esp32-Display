@@ -86,12 +86,13 @@ Defined in `src/networking/network.h` (`networking::INetwork`):
 | `int16_t rssi()` | Signal strength in dBm |
 | `int retryCount()` | Consecutive failed attempts (0 on the first attempt) |
 | `const char* configuredSsid()` | Target SSID (before/independent of connection) |
+| `ConnectStage connectStage()` | Progress sub-stage for the boot checklist (`Connecting` → ~3 s later `Authorizing` → `Connected`) |
 
 The concrete `NetworkImpl` is hidden in `network.cpp` and exposed through `networking::getNetwork()`. Application code never calls `WiFi.*`.
 
 ### Network / application dependency
 
-`Application` receives `networking::INetwork&` by injection (wired in `main.cpp`). `Application::update()` calls `network.update()` every loop and redraws a small Wi-Fi status screen when the state/IP/RSSI changes. The application does not block on connection: `network.begin()` returns immediately and the state machine advances from the loop.
+`Application` receives `networking::INetwork&` by injection (wired in `main.cpp`). `Application::update()` calls `network.update()` every loop and drives the boot checklist from `connectStage()`/`retryCount()`. The application does not block on connection: `network.begin()` returns immediately and the state machine advances from the loop.
 
 ### Wi-Fi configuration / secrets strategy
 
@@ -190,11 +191,11 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 
 | Method | Purpose |
 |--------|---------|
-| `renderConnecting(ssid, attempt, connected, ip)` | No data yet — connection progress: `Conectando a <SSID>...` + `Intento N` (orange), or `Conectado <IP>` + `Actualizando...` (blue) |
+| `renderChecklist(wifiStage, wifiAttempt, weatherStage, weatherAttempt, ip)` | No data yet — step-by-step boot checklist (Wi-Fi + weather), attempt numbers, no animation |
 | `render(const WeatherData&)` | Full weather screen (success) |
 | `renderOffline(const WeatherData&)` | Last valid data kept + `Wi-Fi offline` + last update time |
 | `renderUpdateFailed(const WeatherData&)` | Last valid data kept + `Update failed` + last update time |
-| `updateAnimation(now)` | Called every loop; throttled (~12 fps); redraws the animation zone |
+| `updateAnimation(now)` | Called every loop; throttled (~12 fps); redraws the animation zone (only when data exists) |
 
 Screen layout (240x320 portrait):
 - Colored header bar with the location name (accent-folded to ASCII, title case).
@@ -248,17 +249,23 @@ No LovyanGFX types are exposed through the UI layer.
   - `kWeatherRetryIntervalMs = 5 min` after a failed request once data exists.
   - `kInitialRetryIntervalMs = 30 s` after a failed request while **no data** exists yet (fast recovery after a network outage).
   - Serial command `w` forces an immediate refresh; `r` re-runs the display diagnostic.
-- **State selection** — no data → connection-status screen (`renderConnecting`); data + connected + last fetch ok → `Ready`; data + not connected → `Offline`; data + connected + last fetch failed → `UpdateFailed`. Redrawn when the state, the data timestamp, or the connect attempt count changes.
+- **State selection** — no data → boot checklist (`renderChecklist`); data + connected + last fetch ok → `Ready`; data + not connected → `Offline`; data + connected + last fetch failed → `UpdateFailed`. The checklist is redrawn when the Wi-Fi stage, Wi-Fi attempt, weather stage, or weather attempt changes.
 - **Animation** — `_weatherScreen.updateAnimation(millis())` runs every loop iteration; the screen throttles internally (~12 fps).
 
 ### Boot flow
 
 1. Serial + display init.
-2. **Wi-Fi scan diagnostic** (in `NetworkImpl::begin()`) logs visible SSIDs and whether the target is visible — useful to distinguish "AP not in range" from "association failed".
-3. Non-blocking Wi-Fi connect; the screen shows `Conectando a <SSID>...` + `Intento N`, then `Conectado <IP>` + `Actualizando clima...`.
-4. Weather is fetched (with one TLS retry); the weather screen appears once data arrives.
+2. Persistent error-log module opens; previous events are dumped to serial; `boot` is recorded.
+3. Non-blocking Wi-Fi connect. The screen shows a **step-by-step checklist** (no animation):
+   - `Wi-Fi` section: `Conectando` → `Autorizando` → `Conectado ✓` (attempt number on every row).
+   - `Clima` section (activates after Wi-Fi connects): `Conectando` → `Autorizando` → `Actualizado ✓`, with short staged pauses so the steps are visible.
+4. On weather success the checklist gives way to the weather screen (with condition animation).
 
-The display diagnostic test (RED/GREEN/BLUE/WHITE) no longer runs at boot — it is available on demand via the `r` serial command.
+The display diagnostic test (RED/GREEN/BLUE/WHITE) does not run at boot — it is available on demand via the `r` serial command.
+
+### Persistent boot/error log
+
+`src/common/error_log.{h,cpp}` stores a ring of the last 10 events in flash (NVS, via the Arduino core `Preferences` — no new dependency). Events (`boot`, `wifi_connecting N`, `wifi_connected`, `wifi_fail`, `wifi_disconnected`, `weather_ok`, `weather_fail <name>`) survive unplug/replug and are dumped to serial at every boot. No secrets are ever logged.
 
 The main loop stays responsive: Wi-Fi, refresh scheduling, and rendering are all driven from `Application::update()` without blocking loops.
 
