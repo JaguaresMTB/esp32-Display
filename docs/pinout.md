@@ -22,7 +22,7 @@ This is the single source of truth for the physical wiring. **Do not modify the 
 
 ## Firmware reference
 
-The same mapping lives in firmware at `src/tft_config.h`:
+The same mapping lives in firmware at `src/config/pins.h`:
 
 ```c
 #define TFT_CS    7
@@ -32,4 +32,4 @@ The same mapping lives in firmware at `src/tft_config.h`:
 #define TFT_SCLK  3
 ```
 
-If you change the wiring, update **both** this file and `src/tft_config.h`.
+If you change the wiring, update **both** this file and `src/config/pins.h`.

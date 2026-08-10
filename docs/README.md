@@ -3,7 +3,9 @@
 ## Index
 
 - [Pinout / wiring reference](pinout.md) — single source of truth for hardware connections.
-- [Sprint 1 — Hardware validation](sprints/001-hardware-validation.md) — completed sprint close-out.
+- [Architecture](architecture.md) — project structure, dependency direction, display abstraction.
+- [Sprint 1 — Hardware validation](sprints/001-hardware-validation.md) — completed sprint.
+- [Sprint 2 — Firmware Architecture Foundation](sprints/002-firmware-architecture-foundation.md) — completed sprint.
 - [Sprint template](sprints/000-TEMPLATE.md) — template for future sprint documents.
 
 ## Convention: sprint documentation

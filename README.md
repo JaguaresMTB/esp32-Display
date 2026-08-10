@@ -11,8 +11,9 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Serial (USB-C) | PASS |
 | Display init (software) | PASS |
 | Display rendering (visual) | **PASS** — color cycle and text confirmed on screen |
+| Firmware architecture | **PASS** — layered: main -> application -> display abstraction -> LovyanGFX |
 
-See [Sprint 1 close-out](docs/sprints/001-hardware-validation.md) for details.
+See [Sprint 1 close-out](docs/sprints/001-hardware-validation.md) and [Sprint 2 — Firmware Architecture Foundation](docs/sprints/002-firmware-architecture-foundation.md).
 
 ## Hardware
 
@@ -60,19 +61,38 @@ esp32-Display/
 ├── platformio.ini
 ├── README.md
 ├── src/
-│   ├── main.cpp          # test firmware
-│   └── tft_config.h      # pin mapping + display config (single source of truth)
+│   ├── main.cpp                  # minimal composition root (wiring only)
+│   ├── config/
+│   │   └── pins.h                # GPIO mapping + display params (single source of truth)
+│   ├── common/
+│   │   └── logging.h             # serial logging convention
+│   ├── hardware/
+│   │   └── display/
+│   │       ├── display.h         # display abstraction (IDisplay)
+│   │       └── display.cpp       # LovyanGFX/ST7789 implementation
+│   ├── application/
+│   │   ├── application.h         # application lifecycle
+│   │   └── application.cpp
+│   └── diagnostics/
+│       ├── display_test.h        # display validation test
+│       └── display_test.cpp
 └── docs/
-    ├── README.md         # documentation index & conventions
-    ├── pinout.md         # hardware wiring reference
-    └── sprints/          # one document per completed sprint
+    ├── README.md                 # documentation index & conventions
+    ├── architecture.md           # architecture & dependency direction
+    ├── pinout.md                 # hardware wiring reference
+    └── sprints/                  # one document per completed sprint
         ├── 000-TEMPLATE.md
-        └── 001-hardware-validation.md
+        ├── 001-hardware-validation.md
+        └── 002-firmware-architecture-foundation.md
 ```
 
 ## Configuration
 
-All display GPIO assignments and ST7789 panel parameters live in a single file: [`src/tft_config.h`](src/tft_config.h). Do not scatter GPIO numbers elsewhere.
+All display GPIO assignments and ST7789 panel parameters live in a single file: [`src/config/pins.h`](src/config/pins.h). Do not scatter GPIO numbers elsewhere.
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the dependency direction, the display abstraction API, hardware configuration ownership, and future extension points.
 
 ## Documentation convention
 
