@@ -1,20 +1,5 @@
 #include <LovyanGFX.hpp>
-
-// ---- GMT020-02-7P -> ESP32-C3 Super Mini pin mapping (single location) ----
-#define TFT_CS    7
-#define TFT_DC    6
-#define TFT_RST   5
-#define TFT_MOSI  4
-#define TFT_SCLK  3
-
-// ---- ST7789/ST7789V panel configuration (240x320 portrait) ----
-#define TFT_WIDTH     240
-#define TFT_HEIGHT    320
-#define TFT_ROTATION  0
-#define TFT_OFFSET_X  0
-#define TFT_OFFSET_Y  0
-#define TFT_INVERT    true
-#define TFT_RGB_ORDER false
+#include "tft_config.h"
 
 class LGFX : public lgfx::LGFX_Device
 {
@@ -26,10 +11,10 @@ public:
   {
     {
       auto cfg = _bus.config();
-      cfg.spi_host = SPI2_HOST;
-      cfg.spi_mode = 0;
-      cfg.freq_write = 40000000;
-      cfg.freq_read = 16000000;
+      cfg.spi_host = TFT_SPI_HOST;
+      cfg.spi_mode = TFT_SPI_MODE;
+      cfg.freq_write = TFT_FREQ_WRITE;
+      cfg.freq_read = TFT_FREQ_READ;
       cfg.spi_3wire = false;
       cfg.use_lock = true;
       cfg.dma_channel = SPI_DMA_CH_AUTO;
@@ -92,15 +77,10 @@ static void runDisplayTest(void)
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextDatum(middle_center);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
+  tft.setTextColor(TFT_WHITE, TFT_RED);
   tft.setFont(&fonts::Font4);
-  tft.drawString("ST7789 OK", tft.width() / 2, 130, &fonts::Font4);
-
-  tft.setFont(&fonts::Font2);
-  tft.drawString("ESP32-C3", tft.width() / 2, 165, &fonts::Font2);
-  tft.drawString("240x320", tft.width() / 2, 185, &fonts::Font2);
-
+  tft.fillRect(10, 120, tft.width() - 20, 80, TFT_RED);
+  tft.drawString("Hello World!", tft.width() / 2, 160, &fonts::Font4);
   Serial.println("Test text displayed");
 }
 
