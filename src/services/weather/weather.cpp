@@ -34,7 +34,8 @@ namespace weather
 namespace
 {
   const char* TAG = "WEATHER";
-  const char* OPENWEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/forecast";
+  const char* CURRENT_WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
+  const char* FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 }
 
 const char* weatherErrorName(WeatherError error)
@@ -86,42 +87,39 @@ namespace
         return WeatherError::NotConnected;
       }
 
-      String url = buildUrl();
+      String currentUrl = buildUrl(CURRENT_WEATHER_URL, false);
+      String forecastUrl = buildUrl(FORECAST_URL, true);
 
       logging::info(TAG, "requesting current weather");
 
-      // Retry once on a transient HTTP/TLS failure (flaky uplink); other
-      // errors (401, bad status) are not retried.
-      for (int attempt = 1; attempt <= 2; attempt++)
+      // Current observed conditions (retry once on transient failure).
+      http::Response response;
+      WeatherError err = fetch(currentUrl, response, 2);
+      if (err != WeatherError::Ok)
       {
-        http::SecureClient client;
-        http::Response response;
-        if (!client.get(url, response))
-        {
-          if (attempt == 1)
-          {
-            logging::info(TAG, "request failed (HTTP/TLS/timeout), retrying once");
-            continue;
-          }
-          logging::info(TAG, "request failed: HTTP/TLS/timeout error");
-          return WeatherError::HttpError;
-        }
-
-        if (response.statusCode != 200)
-        {
-          logging::info(TAG, "request failed: HTTP status %d", response.statusCode);
-          if (response.statusCode == 401)
-          {
-            logging::info(TAG, "invalid API key (401)");
-            return WeatherError::ApiError;
-          }
-          return WeatherError::BadStatus;
-        }
-
-        return parse(response.body, data);
+        return err;
       }
 
-      return WeatherError::HttpError;
+      err = parse(response.body, data);
+      if (err != WeatherError::Ok)
+      {
+        return err;
+      }
+
+      // Rain probability comes from the forecast API; optional (not a hard
+      // failure if the forecast call fails).
+      http::Response forecast;
+      if (fetch(forecastUrl, forecast, 1) == WeatherError::Ok)
+      {
+        data.rainProbabilityPercent = parseRainProbability(forecast.body);
+      }
+      else
+      {
+        logging::info(TAG, "rain probability unavailable; using 0");
+        data.rainProbabilityPercent = 0;
+      }
+
+      return WeatherError::Ok;
     }
 
   private:
@@ -140,15 +138,48 @@ namespace
       logging::info(TAG, "location set: %s (%.4f, %.4f)", name, latitude, longitude);
     }
 
-    String buildUrl() const
+    WeatherError fetch(const String& url, http::Response& response, int maxAttempts) const
     {
-      String url = String(OPENWEATHER_BASE_URL);
+      for (int attempt = 1; attempt <= maxAttempts; attempt++)
+      {
+        http::SecureClient client;
+        if (!client.get(url, response))
+        {
+          if (attempt < maxAttempts)
+          {
+            logging::info(TAG, "request failed (HTTP/TLS/timeout), retrying once");
+            continue;
+          }
+          logging::info(TAG, "request failed: HTTP/TLS/timeout error");
+          return WeatherError::HttpError;
+        }
+        if (response.statusCode != 200)
+        {
+          logging::info(TAG, "request failed: HTTP status %d", response.statusCode);
+          if (response.statusCode == 401)
+          {
+            logging::info(TAG, "invalid API key (401)");
+            return WeatherError::ApiError;
+          }
+          return WeatherError::BadStatus;
+        }
+        return WeatherError::Ok;
+      }
+      return WeatherError::HttpError;
+    }
+
+    String buildUrl(const char* base, bool forecast) const
+    {
+      String url = String(base);
       url += "?lat=";
       url += String(_hasLocation ? _lat : WEATHER_LATITUDE, 6);
       url += "&lon=";
       url += String(_hasLocation ? _lon : WEATHER_LONGITUDE, 6);
       url += "&units=metric";
-      url += "&cnt=1";
+      if (forecast)
+      {
+        url += "&cnt=1";
+      }
       if (WEATHER_LANG[0] != '\0')
       {
         url += "&lang=";
@@ -197,22 +228,19 @@ namespace
         return WeatherError::ApiError;
       }
 
-      // Forecast API: current interval is list[0], location in city.
-      JsonObject entry = doc["list"][0];
-      JsonObject main = entry["main"];
-      JsonObject wind = entry["wind"];
-      JsonObject city = doc["city"];
+      JsonObject main = doc["main"];
+      JsonObject wind = doc["wind"];
 
       if (!main["temp"].is<float>() || !main["feels_like"].is<float>() ||
-          !main["humidity"].is<int>() || !city["name"].is<const char*>())
+          !main["humidity"].is<int>() || !doc["name"].is<const char*>())
       {
         logging::info(TAG, "parse failed: missing required field(s)");
         return WeatherError::MissingField;
       }
 
-      data.locationName = city["name"] | _name;
-      data.latitude = city["coord"]["lat"] | 0.0f;
-      data.longitude = city["coord"]["lon"] | 0.0f;
+      data.locationName = doc["name"] | _name;
+      data.latitude = doc["coord"]["lat"] | 0.0f;
+      data.longitude = doc["coord"]["lon"] | 0.0f;
 
       data.temperatureC = main["temp"] | 0.0f;
       data.feelsLikeC = main["feels_like"] | 0.0f;
@@ -222,18 +250,27 @@ namespace
       data.windSpeed = wind["speed"] | 0.0f;
       data.windDirection = wind["deg"] | 0;
 
-      data.condition = entry["weather"][0]["main"] | "";
+      data.condition = doc["weather"][0]["main"] | "";
       data.conditionId = toCondition(data.condition);
-      data.conditionDescription = entry["weather"][0]["description"] | "";
+      data.conditionDescription = doc["weather"][0]["description"] | "";
 
-      // pop is 0..1 -> percent.
-      data.rainProbabilityPercent = (int)((entry["pop"] | 0.0f) * 100.0f + 0.5f);
-
-      data.sunrise = city["sunrise"] | 0UL;
-      data.sunset = city["sunset"] | 0UL;
-      data.timestamp = entry["dt"] | 0UL;
+      data.sunrise = doc["sys"]["sunrise"] | 0UL;
+      data.sunset = doc["sys"]["sunset"] | 0UL;
+      data.timestamp = doc["dt"] | 0UL; // observation time (~now)
 
       return WeatherError::Ok;
+    }
+
+    int parseRainProbability(const String& body) const
+    {
+      JsonDocument doc;
+      DeserializationError err = deserializeJson(doc, body);
+      if (err)
+      {
+        return 0;
+      }
+      // pop is 0..1 -> percent.
+      return (int)((doc["list"][0]["pop"] | 0.0f) * 100.0f + 0.5f);
     }
   };
 }

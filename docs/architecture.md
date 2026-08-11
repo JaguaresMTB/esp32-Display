@@ -186,11 +186,12 @@ struct WeatherData {
 ### OpenWeatherProvider
 
 - Concrete implementation `OpenWeatherProvider` is hidden in `weather.cpp` and exposed through `weather::getWeatherService()`. Only it knows:
-  - The OpenWeather URL (`api.openweathermap.org/data/2.5/forecast` with `cnt=1` — the Forecast API, which also provides the rain probability `pop`).
-  - The request contract (`lat`, `lon`, `units=metric`, `cnt=1`, `lang`, `appid`) and metric (Celsius).
-  - The response JSON field names and parsing (`list[0]` for the current interval, `city` for location/sunrise/sunset, `pop` for rain probability).
-- The provider checks connectivity through `networking::INetwork` (via `networking::getNetwork()`) and performs the request through `http::SecureClient`; it never calls `WiFi.*` or `HTTPClient` directly.
-- Missing/malformed JSON fields are handled safely (core fields are validated; optional fields default).
+  - Two OpenWeather endpoints: the **Current Weather API** (`/data/2.5/weather`) for the observed conditions (temp, wind, humidity, condition, sunrise/sunset, observation time), and the **Forecast API** (`/data/2.5/forecast?cnt=1`) called once per refresh **only for the rain probability** (`pop`).
+  - The request contract (`lat`, `lon`, `units=metric`, `lang`, `appid`) and metric (Celsius).
+  - The response JSON field names and parsing (`main`/`wind`/`weather[0]`/`sys`/`name`/`dt` for current; `list[0].pop` for rain probability).
+- The provider checks connectivity through `networking::INetwork` (via `networking::getNetwork()`) and performs the requests through `http::SecureClient`; it never calls `WiFi.*` or `HTTPClient` directly.
+- Missing/malformed JSON fields are handled safely (core fields are validated; optional fields default). A failure of the rain-probability call degrades gracefully (probability = 0), while the current-conditions call is authoritative.
+- `WeatherData.timestamp` is the current-weather **observation time** (`dt`), so the "last update" time and day/night reflect the actual local time.
 
 ### HTTP/HTTPS responsibility
 
