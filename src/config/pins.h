@@ -8,6 +8,11 @@
 #define TFT_MOSI  4
 #define TFT_SCLK  3
 
+// ---- Onboard BOOT button (ESP32-C3 strapping pin GPIO9, active-low) ----
+// Held low at reset enters download mode; the firmware only reads it as an
+// input after startup. RST is the hardware reset and is never used as input.
+#define BOOT_BUTTON_PIN 9
+
 // ---- Display hardware parameters (validated Sprint 1) ----
 // Do not change without a documented reason (see docs/architecture.md).
 #define TFT_WIDTH      240

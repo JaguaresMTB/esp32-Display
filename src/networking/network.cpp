@@ -5,19 +5,8 @@
 
 #include "common/error_log.h"
 #include "common/logging.h"
-
-// Real credentials come from src/config/wifi_credentials.h (gitignored).
-// Without that file the build still succeeds with empty credentials.
-#if __has_include("config/wifi_credentials.h")
-#include "config/wifi_credentials.h"
-#endif
-
-#ifndef WIFI_SSID
-#define WIFI_SSID ""
-#endif
-#ifndef WIFI_PASSWORD
-#define WIFI_PASSWORD ""
-#endif
+#include "networking/provisioning.h"
+#include "networking/wifi_credentials.h"
 
 namespace networking
 {
@@ -43,29 +32,58 @@ namespace
     return "UNKNOWN";
   }
 
+  String buildApSsid()
+  {
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "WeatherDisplay-%02X%02X", mac[4], mac[5]);
+    return String(buf);
+  }
+
   class NetworkImpl final : public INetwork
   {
   public:
+    NetworkImpl() : _provisioning(_store) {}
+
     void begin() override
     {
       logging::info(TAG, "initialization");
-      if (WIFI_SSID[0] == '\0')
+      _store.begin();
+
+      if (!_store.load(_creds))
       {
-        logging::info(TAG, "no credentials configured; skipping connection");
-        _state = State::Disconnected;
+        logging::info(TAG, "no stored credentials; entering provisioning mode");
+        enterProvisioningMode();
         return;
       }
+
+      _mode = Mode::Normal;
       _retries = 0;
       startConnect(State::Connecting);
     }
 
     void update() override
     {
+      if (_mode == Mode::Provisioning)
+      {
+        _provisioning.update();
+
+        if (_provisioning.takeCompletion())
+        {
+          _store.load(_creds);
+          _mode = Mode::Normal;
+          _retries = 0;
+          startConnect(State::Connecting);
+        }
+        return;
+      }
+
       switch (_state)
       {
         case State::Disconnected:
         case State::Reconnecting:
-          if (WIFI_SSID[0] != '\0' && millis() >= _nextAttemptAt)
+          if (!_creds.ssid.isEmpty() && millis() >= _nextAttemptAt)
           {
             startConnect(_state == State::Reconnecting ? State::Reconnecting : State::Connecting);
           }
@@ -96,7 +114,7 @@ namespace
     String localIp() const override { return WiFi.localIP().toString(); }
     int16_t rssi() const override { return WiFi.RSSI(); }
     int retryCount() const override { return _retries; }
-    const char* configuredSsid() const override { return WIFI_SSID; }
+    const char* configuredSsid() const override { return _creds.ssid.c_str(); }
 
     ConnectStage connectStage() const override
     {
@@ -112,7 +130,42 @@ namespace
       }
     }
 
+    void enterProvisioningMode() override
+    {
+      if (_mode == Mode::Provisioning)
+      {
+        return;
+      }
+      logging::info(TAG, "entering provisioning mode");
+      errorlog::record("provisioning_started");
+      WiFi.disconnect();
+      _mode = Mode::Provisioning;
+      _state = State::Disconnected;
+      String apSsid = buildApSsid();
+      _provisioning.start(apSsid.c_str());
+    }
+
+    bool isProvisioning() const override { return _mode == Mode::Provisioning; }
+
+    const char* provisioningStateName() const override { return _provisioning.stateName(); }
+
+    String provisioningApSsid() const override { return _provisioning.apSsid(); }
+    String provisioningApIp() const override { return _provisioning.apIp(); }
+
+    bool hasStoredCredentials() const override { return _store.hasCredentials(); }
+
   private:
+    enum class Mode
+    {
+      Normal,
+      Provisioning,
+    };
+
+    Mode _mode = Mode::Normal;
+    WifiCredentialStore _store;
+    ProvisioningManager _provisioning;
+    WiFiCredentials _creds;
+
     State _state = State::Disconnected;
     unsigned long _attemptStart = 0;
     unsigned long _nextAttemptAt = 0;
@@ -126,7 +179,7 @@ namespace
       errorlog::record(("wifi_connecting " + String(_retries + 1)).c_str());
       WiFi.disconnect();
       WiFi.mode(WIFI_STA);
-      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      WiFi.begin(_creds.ssid.c_str(), _creds.password.c_str());
     }
 
     void handleAttempt()

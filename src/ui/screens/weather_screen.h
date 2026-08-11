@@ -42,6 +42,9 @@ namespace ui
     void renderChecklist(Stage wifiStage, int wifiAttempt, Stage weatherStage,
                          int weatherAttempt, const char* ip);
 
+    // Wi-Fi provisioning setup screen.
+    void renderProvisioning(const char* apSsid, const char* ip);
+
     // Called every loop; throttled internally and redraws only the animation
     // zone. Does nothing while no weather data exists (checklist is static).
     void updateAnimation(unsigned long now);

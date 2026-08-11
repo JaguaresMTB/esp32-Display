@@ -4,6 +4,7 @@
 
 #include "common/error_log.h"
 #include "common/logging.h"
+#include "config/pins.h"
 
 // Timezone offset for the "last update" display (from the local weather config).
 #if __has_include("config/weather_credentials.h")
@@ -40,6 +41,8 @@ bool Application::begin()
   errorlog::dump();
   errorlog::record("boot");
 
+  pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
+
   logging::info("DISPLAY", "display initialization start");
   bool ok = _display.init();
   if (!ok)
@@ -54,40 +57,57 @@ bool Application::begin()
 
   _weatherStage = ui::WeatherScreen::Stage::Pending;
   _weatherAttempt = 0;
-  forceRenderChecklist();
+
+  if (_network.isProvisioning())
+  {
+    renderProvisioningState();
+  }
+  else
+  {
+    forceRenderChecklist();
+  }
 
   return true;
 }
 
 void Application::update()
 {
+  handleBootButton();
+
   _network.update();
 
+  const bool provisioning = _network.isProvisioning();
   const bool connected = _network.isConnected();
 
-  // Periodic / on-demand weather refresh. Scheduling is elapsed-time based.
-  if (connected && millis() >= _nextWeatherRefreshAt)
+  if (provisioning)
   {
-    _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs; // safety default
-
-    if (!_hasWeatherData)
+    renderProvisioningState();
+  }
+  else
+  {
+    // Periodic / on-demand weather refresh. Scheduling is elapsed-time based.
+    if (connected && millis() >= _nextWeatherRefreshAt)
     {
-      // Step-by-step checklist progress before the first data arrives.
-      _weatherAttempt++;
-      _weatherStage = ui::WeatherScreen::Stage::Connecting;
-      forceRenderChecklist();
-      delay(400);
-      _weatherStage = ui::WeatherScreen::Stage::Authorizing;
-      forceRenderChecklist();
-      delay(400);
+      _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs; // safety default
+
+      if (!_hasWeatherData)
+      {
+        // Step-by-step checklist progress before the first data arrives.
+        _weatherAttempt++;
+        _weatherStage = ui::WeatherScreen::Stage::Connecting;
+        forceRenderChecklist();
+        delay(400);
+        _weatherStage = ui::WeatherScreen::Stage::Authorizing;
+        forceRenderChecklist();
+        delay(400);
+      }
+
+      fetchWeather();
     }
 
-    fetchWeather();
+    renderWeatherState();
+    _weatherScreen.updateAnimation(millis());
   }
-
-  renderWeatherState();
-
-  _weatherScreen.updateAnimation(millis());
 
   if (Serial.available())
   {
@@ -102,6 +122,11 @@ void Application::update()
     {
       logging::info(TAG, "weather refresh requested");
       _nextWeatherRefreshAt = millis();
+    }
+    else if (c == 'p')
+    {
+      logging::info(TAG, "provisioning requested");
+      _network.enterProvisioningMode();
     }
   }
 
@@ -162,6 +187,52 @@ void Application::forceRenderChecklist()
 {
   _lastUiState = UiState::None;
   renderWeatherState();
+}
+
+void Application::handleBootButton()
+{
+  const bool pressed = (digitalRead(BOOT_BUTTON_PIN) == LOW);
+  const unsigned long now = millis();
+
+  if (pressed)
+  {
+    if (!_buttonPressed)
+    {
+      _buttonPressed = true;
+      _buttonPressStart = now;
+      _buttonLongTriggered = false;
+      logging::info(TAG, "BOOT pressed (pin=%d)", BOOT_BUTTON_PIN);
+    }
+    else if (!_buttonLongTriggered && (now - _buttonPressStart >= kBootButtonLongPressMs))
+    {
+      _buttonLongTriggered = true;
+      logging::info(TAG, "BOOT long press -> provisioning");
+      _network.enterProvisioningMode();
+    }
+  }
+  else
+  {
+    if (_buttonPressed && !_buttonLongTriggered)
+    {
+      logging::info(TAG, "BOOT short press (ignored)");
+    }
+    _buttonPressed = false;
+    _buttonLongTriggered = false;
+  }
+}
+
+void Application::renderProvisioningState()
+{
+  String ap = _network.provisioningApSsid();
+  String ip = _network.provisioningApIp();
+  if (ap != _lastProvisioningAp || ip != _lastProvisioningIp ||
+      _lastUiState != UiState::Provisioning)
+  {
+    _lastProvisioningAp = ap;
+    _lastProvisioningIp = ip;
+    _lastUiState = UiState::Provisioning;
+    _weatherScreen.renderProvisioning(ap.c_str(), ip.c_str());
+  }
 }
 
 ui::WeatherScreen::Stage Application::mapStage(networking::ConnectStage stage)

@@ -125,6 +125,32 @@ DISCONNECTED --begin()/retry--> CONNECTING --success--> CONNECTED
 - Consecutive-failure counter resets on a successful connection.
 - The application and display remain fully responsive during connect/reconnect; the Wi-Fi status screen shows `Connecting...` / `Connected` / `No network`.
 
+## Wi-Fi provisioning & reconfiguration
+
+### Network manager responsibilities
+
+`NetworkImpl` (the `INetwork` implementation) is the network manager. In **normal mode** it runs the Sprint 3 connection state machine (retry/reconnect, non-blocking). In **provisioning mode** it delegates to `ProvisioningManager`. It loads credentials from NVS at boot; if none exist it enters provisioning automatically. `enterProvisioningMode()` is the explicit trigger (BOOT long-press or the `p` serial command) and is reusable by a future physical setup button.
+
+### Provisioning manager responsibilities
+
+`src/networking/provisioning.{h,cpp}` (`ProvisioningManager`):
+- **SoftAP** `WeatherDisplay-XXXX` (XXXX = last 4 hex of the MAC), open (documented trade-off), AP-only during provisioning.
+- **DNS captive portal** (`DNSServer`) resolving requests to `192.168.4.1`.
+- **HTTP configuration portal** (`WebServer`): `GET /` (scan list + manual SSID + password + status), `POST /configure`, `GET /status` (JSON), unknown routes → 302 to `/`.
+- **Cached Wi-Fi scan** (~30 s) with SSID/RSSI/encryption; manual SSID entry always available.
+- **State machine**: `IDLE → PROVISIONING → CONFIGURING → TESTING_CONNECTION → COMMIT → NORMAL`; failure returns to `CONFIGURING` with the AP still up.
+
+### Credential storage & active/candidate strategy
+
+- `WifiCredentialStore` (`src/networking/wifi_credentials.{h,cpp}`) persists `WiFiCredentials {ssid, password}` in the dedicated NVS namespace `"wifi"` (separate from the `"bootlog"` error log). Secrets are never logged.
+- **Candidate vs active:** submitted credentials are tested first (bounded ~15 s, AP stays up via AP_STA). They are committed to NVS **only after a successful connection**. A failed reconfiguration never destroys the stored active configuration.
+- Provisioning entry conditions: (1) no stored credentials at boot, or (2) explicit trigger. A temporary Wi-Fi outage does **not** erase credentials or enter provisioning.
+
+### BOOT button
+
+- GPIO9 (ESP32-C3 strapping pin, active-low), read as `INPUT_PULLUP` only after startup; never driven. Long-press (~3 s, elapsed-time, non-blocking) enters provisioning; short presses are ignored. RST is never used as input.
+- On successful configuration, SoftAP/DNS/HTTP are stopped and control returns to the normal network manager; provisioning services never remain active during normal operation.
+
 ## Weather service abstraction
 
 Defined in `src/services/weather/weather.h` (`weather::IWeatherService`):

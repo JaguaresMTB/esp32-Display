@@ -1,12 +1,11 @@
-// Wi-Fi credentials template.
+// LEGACY — superseded by on-device provisioning (Sprint 8).
 //
-// To provide real credentials:
-//   1. Copy this file to  src/config/wifi_credentials.h
-//   2. Fill in your SSID and password
-//   3. Build and upload
+// Wi-Fi credentials are now configured through the provisioning portal
+// (SoftAP "WeatherDisplay-XXXX" + http://192.168.4.1) and stored in NVS.
+// The firmware no longer reads this file at runtime.
 //
-// src/config/wifi_credentials.h is listed in .gitignore and must NEVER be
-// committed. Only this .example.h file is tracked.
+// This file is kept only as a historical record of the old development
+// mechanism. src/config/wifi_credentials.h (gitignored) is unused.
 //
 // The password is never printed by the firmware.
 #pragma once

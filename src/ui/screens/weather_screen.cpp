@@ -42,6 +42,21 @@ void WeatherScreen::renderChecklist(Stage wifiStage, int wifiAttempt, Stage weat
   _scene = Scene::None;
 }
 
+void WeatherScreen::renderProvisioning(const char* apSsid, const char* ip)
+{
+  _display.clear();
+
+  drawHeader(label("Wi-Fi Setup", "Configuracion Wi-Fi"), display::Color::Orange);
+  _display.drawText(label("Connect to:", "Conectate a:"), _display.width() / 2, 130,
+                    display::TextSize::Medium);
+  _display.drawText(apSsid, _display.width() / 2, 162, display::TextSize::Medium);
+  _display.drawText(label("Open:", "Abre:"), _display.width() / 2, 202, display::TextSize::Medium);
+  _display.drawText(ip, _display.width() / 2, 234, display::TextSize::Medium);
+
+  _hasData = false;
+  _scene = Scene::None;
+}
+
 void WeatherScreen::render(const weather::WeatherData& data)
 {
   _display.clear();

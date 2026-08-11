@@ -50,6 +50,20 @@ namespace networking
 
     // Progress sub-stage during attempts (for the boot checklist).
     virtual ConnectStage connectStage() const = 0;
+
+    // --- Provisioning ---
+
+    // Enter provisioning mode (SoftAP + DNS + HTTP configuration portal).
+    // No-op if already provisioning.
+    virtual void enterProvisioningMode() = 0;
+
+    virtual bool isProvisioning() const = 0;
+    virtual const char* provisioningStateName() const = 0;
+    virtual String provisioningApSsid() const = 0;
+    virtual String provisioningApIp() const = 0;
+
+    // True when Wi-Fi credentials are stored in NVS.
+    virtual bool hasStoredCredentials() const = 0;
   };
 
   // Factory: returns the singleton network instance.

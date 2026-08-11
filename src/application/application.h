@@ -26,6 +26,7 @@ namespace app
     static constexpr unsigned long kWeatherRefreshIntervalMs = 15UL * 60 * 1000;
     static constexpr unsigned long kWeatherRetryIntervalMs = 5UL * 60 * 1000;
     static constexpr unsigned long kInitialRetryIntervalMs = 30UL * 1000;
+    static constexpr unsigned long kBootButtonLongPressMs = 3000UL;
 
     enum class UiState
     {
@@ -34,6 +35,7 @@ namespace app
       Ready,
       Offline,
       UpdateFailed,
+      Provisioning,
     };
 
     display::IDisplay& _display;
@@ -63,5 +65,14 @@ namespace app
     void renderWeatherState();
     void logWeather(const weather::WeatherData& data) const;
     void forceRenderChecklist();
+
+    void handleBootButton();
+    void renderProvisioningState();
+
+    bool _buttonPressed = false;
+    bool _buttonLongTriggered = false;
+    unsigned long _buttonPressStart = 0;
+    String _lastProvisioningAp;
+    String _lastProvisioningIp;
   };
 }

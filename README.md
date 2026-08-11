@@ -50,6 +50,7 @@ upload_port = COM4
 - On boot the firmware initializes, connects to Wi-Fi and fetches weather (no automatic color test).
 - Send `r` over serial to run the display diagnostic test (RED/GREEN/BLUE/WHITE) on demand.
 - Send `w` over serial to force an immediate weather refresh (default interval is 15 min).
+- Send `p` over serial to enter Wi-Fi provisioning mode (same as the BOOT long-press).
 - The firmware prints an `alive` heartbeat every 2 s.
 
 ### Boot sequence
@@ -72,16 +73,24 @@ The display diagnostic test (RED/GREEN/BLUE/WHITE) runs only via `r`.
 4. Full-screen WHITE (2 s)
 5. Text frame: black background, red box, white text
 
-### Wi-Fi setup
+### Wi-Fi setup (on-device provisioning)
 
-Wi-Fi credentials are provided via a local, git-ignored file:
+Wi-Fi is configured **on the device** — no computer or reflash needed.
 
-```sh
-cp src/config/wifi_credentials.example.h src/config/wifi_credentials.h
-# edit src/config/wifi_credentials.h -> set WIFI_SSID and WIFI_PASSWORD
-```
+**First use (no credentials):**
+1. Power the device — it automatically enters Wi-Fi Setup mode.
+2. Connect your phone/PC to the **`WeatherDisplay-XXXX`** network (open).
+3. Open **`http://192.168.4.1`**.
+4. Select or type your Wi-Fi **SSID**, enter the **password**, tap **Save & Connect**.
+5. The device validates the connection, saves it, and starts showing the weather.
 
-`src/config/wifi_credentials.h` is never committed and the password is never logged.
+**Reconfiguration (device already configured):**
+1. Hold the **BOOT** button ~3 s (the device enters Wi-Fi Setup mode).
+2. Connect to **`WeatherDisplay-XXXX`**, open `http://192.168.4.1`.
+3. Configure the new network. It becomes active **only after the connection is validated**.
+   - If the new credentials are wrong, the portal shows an error and your previous configuration remains intact — just retry.
+
+> A temporary Wi-Fi outage does **not** erase your credentials or enter setup mode automatically — the device retries/reconnects on its own.
 
 ### OpenWeather setup
 
@@ -105,19 +114,22 @@ esp32-Display/
 │   ├── main.cpp                  # minimal composition root (wiring only)
 │   ├── config/
 │   │   ├── pins.h                # GPIO mapping + display params (single source of truth)
-│   │   ├── wifi_credentials.example.h  # Wi-Fi credentials template (tracked)
-│   │   ├── wifi_credentials.h    # real credentials (LOCAL, gitignored)
+│   │   ├── wifi_credentials.example.h  # LEGACY (superseded by provisioning)
+│   │   ├── wifi_credentials.h    # legacy compile-time creds (LOCAL, gitignored, unused)
 │   │   ├── weather_credentials.example.h # OpenWeather key + location template (tracked)
 │   │   └── weather_credentials.h # real key + coordinates (LOCAL, gitignored)
 │   ├── common/
-│   │   └── logging.h             # serial logging convention
+│   │   ├── logging.h             # serial logging convention
+│   │   └── error_log.h/.cpp      # persistent boot/error log (NVS)
 │   ├── hardware/
 │   │   └── display/
 │   │       ├── display.h         # display abstraction (IDisplay)
 │   │       └── display.cpp       # LovyanGFX/ST7789 implementation
 │   ├── networking/
 │   │   ├── network.h             # Wi-Fi abstraction (INetwork)
-│   │   ├── network.cpp           # Arduino WiFi implementation (state machine)
+│   │   ├── network.cpp           # network manager (normal + provisioning modes)
+│   │   ├── wifi_credentials.h/.cpp # credential model + NVS store
+│   │   ├── provisioning.h/.cpp   # SoftAP + DNS + HTTP provisioning portal
 │   │   ├── http.h                # HTTPS GET transport (http::SecureClient)
 │   │   └── http.cpp              # WiFiClientSecure + HTTPClient implementation
 │   ├── services/
