@@ -25,7 +25,7 @@ namespace app
     void update();
 
   private:
-    static constexpr unsigned long kWeatherRefreshIntervalMs = 15UL * 60 * 1000;
+    static constexpr unsigned long kWeatherRefreshIntervalMs = 5UL * 60 * 1000;
     static constexpr unsigned long kWeatherRetryIntervalMs = 5UL * 60 * 1000;
     static constexpr unsigned long kInitialRetryIntervalMs = 30UL * 1000;
     static constexpr unsigned long kBootButtonLongPressMs = 3000UL;
