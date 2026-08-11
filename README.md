@@ -14,7 +14,7 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Firmware architecture | **PASS** — layered: main -> application -> display/network/weather abstractions |
 | Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
 | OpenWeather | **PASS** — HTTPS request, JSON parse, WeatherData populated (25.4 C in Mérida) |
-| Weather UI + refresh | **PASS** — production weather screen, 15-min periodic refresh, offline/failure states |
+| Weather UI + refresh | **PASS** — production weather screen, 5-min periodic refresh, offline/failure states |
 | Weather animation | **PASS** — condition-based animated scenes (sun/moon, clouds, rain, storm, snow, fog) |
 | Language | **PASS** — Spanish UI labels + localized descriptions (`lang=es`) |
 | Metrics | **PASS** — wind in km/h with cardinal direction (e.g. `20.9 km/h NE`), rain probability %, metric units (C, hPa) |

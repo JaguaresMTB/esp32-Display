@@ -292,7 +292,7 @@ No LovyanGFX types are exposed through the UI layer.
 - Network state tracking (via `networking::INetwork`).
 - **WeatherData caching** — `_weatherData` + `_hasWeatherData`. The cache is replaced **only** after a successful request (`WeatherError::Ok`); failures keep the last valid data (RAM-only; lost on reboot).
 - **Refresh scheduling** — elapsed-time based, never `delay()`:
-  - `kWeatherRefreshIntervalMs = 15 min` after a successful request.
+  - `kWeatherRefreshIntervalMs = 5 min` after a successful request.
   - `kWeatherRetryIntervalMs = 5 min` after a failed request once data exists.
   - `kInitialRetryIntervalMs = 30 s` after a failed request while **no data** exists yet (fast recovery after a network outage).
   - Serial command `w` forces an immediate refresh; `r` re-runs the display diagnostic.
