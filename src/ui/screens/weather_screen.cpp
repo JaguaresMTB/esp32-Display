@@ -136,6 +136,14 @@ WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition, bool 
   }
 }
 
+const char* WeatherScreen::windCardinal(int degrees)
+{
+  static const char* points[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+  int index = ((degrees % 360) + 360) % 360;
+  index = (index + 22) / 45; // round to nearest 45° sector
+  return points[index % 8];
+}
+
 bool WeatherScreen::isNight(const weather::WeatherData& data) const
 {
   if (data.sunrise == 0 || data.sunset == 0)
@@ -170,7 +178,7 @@ void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
 
   drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 246);
   {
-    String wind = String(data.windSpeed * 3.6f, 1) + " km/h";
+    String wind = String(data.windSpeed * 3.6f, 1) + " km/h " + windCardinal(data.windDirection);
     drawTextAlignedMetric(label("Wind", "Viento"), wind, 266);
   }
   drawTextAlignedMetric(label("Rain", "Lluvia"), String(data.rainProbabilityPercent) + " %", 292);
