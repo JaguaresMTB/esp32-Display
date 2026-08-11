@@ -199,7 +199,7 @@ void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
   }
 
   _display.drawText(titleCase(data.conditionDescription).c_str(), _display.width() / 2, 208,
-                    display::TextSize::Metric);
+                    display::TextSize::Bold);
 
   _display.drawLine(16, 224, _display.width() - 16, 224, display::Color::White);
 

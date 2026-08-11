@@ -28,6 +28,7 @@ namespace display
     Large = 3,
     XLarge = 4,
     Metric = 5, // ~20 px (between Small and Medium)
+    Bold = 6,   // ~16 px bold (FreeSansBold12pt)
   };
 
   enum class TextAlign : uint8_t

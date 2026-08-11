@@ -134,6 +134,10 @@ namespace
           tft.setFont(&fonts::Font2);
           tft.setTextSize(1.25f); // 8x16 * 1.25 = 10x20 px
           break;
+        case TextSize::Bold:
+          tft.setFont(&fonts::FreeSansBold12pt7b);
+          tft.setTextSize(1);
+          break;
         case TextSize::Medium:
           tft.setFont(&fonts::Font4);
           tft.setTextSize(1);

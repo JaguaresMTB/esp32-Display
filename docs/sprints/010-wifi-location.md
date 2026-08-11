@@ -71,3 +71,10 @@ Application
 
 - No new dependencies (reuses `http::SecureClient` and ArduinoJson; NVS via core `Preferences`).
 - No hardware changes; display config (Sprint 1 baseline) untouched.
+
+## Follow-up (post-sprint 010)
+
+- **Day/night background + adaptive text** — the weather screen uses a sky-blue background by day and dark navy at night (from `sunrise`/`sunset`), with dark navy text on the day background and white at night (new `IDisplay::setTextColor`). The animation zone blends with the background; the moon carves with the night color.
+- **7-segment temperature** — the hero temperature now uses `Font7` (native 48 px, crisp) rendered as the big number plus a small `C` unit beside it.
+- **Condition line bold** — the condition description uses `TextSize::Bold` (`FreeSansBold12pt`, ~16 px) so long descriptions fit and stand out.
+- **Current + forecast weather** — the provider now uses the **Current Weather API** for the observed conditions (matching other apps, and `dt` is the observation time so "Actualizado HH:MM" is correct) plus a Forecast call **only for the rain probability** (`pop`). Two requests per refresh (~192/day, within the free tier).
