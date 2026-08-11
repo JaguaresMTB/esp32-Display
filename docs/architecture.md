@@ -230,7 +230,7 @@ Screen layout (240x320 portrait):
 - **Animation zone** (y 36-110) — condition-based scene, or spinner while loading.
 - Hero temperature (XLarge), feels-like, condition.
 - Separator line.
-- Metrics (humidity / wind / direction) left/right aligned.
+- Metrics (humidity / wind with cardinal direction / rain probability) left/right aligned.
 - Footer with last-update local time (`HH:MM`), or the offline/update-failed indicator.
 
 The header bar color encodes the state (blue = ready, orange = connecting/offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only. Body text uses `Medium` (26 px) for readability; the footer is `Small`.
@@ -253,7 +253,7 @@ The header bar color encodes the state (blue = ready, orange = connecting/offlin
 
 Day/night is derived from `WeatherData.timestamp` vs `sunrise`/`sunset`. Scenes are drawn with `fillCircle`/`fillEllipse`/`fillTriangle`/`drawLine`/`fillRect` through `IDisplay` — no image assets, no LovyanGFX types in the UI layer. Only the animation zone is redrawn each frame (static text renders only on state change), keeping the screen stable and the loop responsive.
 
-The metrics row shows `Humedad %`, `Viento km/h` (m/s × 3.6), and `Lluvia %` (rain probability from the Forecast API `pop`); wind direction is parsed but no longer displayed.
+The metrics row shows `Humedad %`, `Viento km/h` (m/s × 3.6) with the cardinal direction appended (e.g. `Viento 20.9 km/h NE`, via `windCardinal()`), and `Lluvia %` (rain probability from the Forecast API `pop`); the raw wind direction in degrees is parsed but only shown as the cardinal annotation.
 
 ### Language (UI labels + descriptions)
 

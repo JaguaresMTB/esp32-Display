@@ -45,6 +45,10 @@ Improve the weather screen: show a moon instead of a sun on clear nights, use me
 
 - None. Note: with the Forecast endpoint, temperature/wind/etc. reflect the current 3-hour forecast window rather than the instantaneous observation.
 
+## Follow-up (wind cardinal direction)
+
+After the sprint, the wind metric was updated to append the cardinal direction from the parsed `windDirection` degrees (8-point compass: N, NE, E, SE, S, SW, W, NW), e.g. `Viento 20.9 km/h NE`. Implemented via `WeatherScreen::windCardinal()`; the `Direccion` row remains replaced by `Lluvia %`.
+
 ## Recommended next steps
 
 - Sprint 10 candidates: TLS certificate hardening, NVS persistence of last-known weather, or a general night dark theme for all scenes.
