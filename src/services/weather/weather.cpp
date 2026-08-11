@@ -34,7 +34,7 @@ namespace weather
 namespace
 {
   const char* TAG = "WEATHER";
-  const char* OPENWEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
+  const char* OPENWEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/forecast";
 }
 
 const char* weatherErrorName(WeatherError error)
@@ -135,6 +135,7 @@ namespace
       url += "&lon=";
       url += String(WEATHER_LONGITUDE, 6);
       url += "&units=metric";
+      url += "&cnt=1";
       if (WEATHER_LANG[0] != '\0')
       {
         url += "&lang=";
@@ -183,19 +184,22 @@ namespace
         return WeatherError::ApiError;
       }
 
-      JsonObject main = doc["main"];
-      JsonObject wind = doc["wind"];
+      // Forecast API: current interval is list[0], location in city.
+      JsonObject entry = doc["list"][0];
+      JsonObject main = entry["main"];
+      JsonObject wind = entry["wind"];
+      JsonObject city = doc["city"];
 
       if (!main["temp"].is<float>() || !main["feels_like"].is<float>() ||
-          !main["humidity"].is<int>() || !doc["name"].is<const char*>())
+          !main["humidity"].is<int>() || !city["name"].is<const char*>())
       {
         logging::info(TAG, "parse failed: missing required field(s)");
         return WeatherError::MissingField;
       }
 
-      data.locationName = doc["name"] | "?";
-      data.latitude = doc["coord"]["lat"] | 0.0f;
-      data.longitude = doc["coord"]["lon"] | 0.0f;
+      data.locationName = city["name"] | "?";
+      data.latitude = city["coord"]["lat"] | 0.0f;
+      data.longitude = city["coord"]["lon"] | 0.0f;
 
       data.temperatureC = main["temp"] | 0.0f;
       data.feelsLikeC = main["feels_like"] | 0.0f;
@@ -205,10 +209,16 @@ namespace
       data.windSpeed = wind["speed"] | 0.0f;
       data.windDirection = wind["deg"] | 0;
 
-      data.condition = doc["weather"][0]["main"] | "";
+      data.condition = entry["weather"][0]["main"] | "";
       data.conditionId = toCondition(data.condition);
-      data.conditionDescription = doc["weather"][0]["description"] | "";
-      data.timestamp = doc["dt"] | 0UL;
+      data.conditionDescription = entry["weather"][0]["description"] | "";
+
+      // pop is 0..1 -> percent.
+      data.rainProbabilityPercent = (int)((entry["pop"] | 0.0f) * 100.0f + 0.5f);
+
+      data.sunrise = city["sunrise"] | 0UL;
+      data.sunset = city["sunset"] | 0UL;
+      data.timestamp = entry["dt"] | 0UL;
 
       return WeatherError::Ok;
     }

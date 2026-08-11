@@ -180,6 +180,8 @@ void Application::logWeather(const weather::WeatherData& data) const
                 data.windSpeed, data.windDirection);
   logging::info("WEATHER", "condition=%s (%s)",
                 data.condition.c_str(), data.conditionDescription.c_str());
+  logging::info("WEATHER", "rain_probability=%d %% sunrise=%lu sunset=%lu",
+                data.rainProbabilityPercent, data.sunrise, data.sunset);
   logging::info("WEATHER", "timestamp=%lu", data.timestamp);
 }
 

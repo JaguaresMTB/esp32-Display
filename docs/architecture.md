@@ -171,10 +171,12 @@ struct WeatherData {
   float temperatureC, feelsLikeC;
   int humidityPercent, pressureHpa;
   float windSpeed;         // m/s
-  int windDirection;       // degrees
+  int windDirection;       // degrees (kept in the model; not shown)
   String condition;        // raw condition group, e.g. "Clouds"
   Condition conditionId;   // typed group for the UI/animation
   String conditionDescription; // localized description, e.g. "nubes dispersas"
+  int rainProbabilityPercent; // probability of precipitation (0-100)
+  unsigned long sunrise, sunset; // unix seconds (day/night)
   unsigned long timestamp; // unix seconds
 };
 ```
@@ -184,9 +186,9 @@ struct WeatherData {
 ### OpenWeatherProvider
 
 - Concrete implementation `OpenWeatherProvider` is hidden in `weather.cpp` and exposed through `weather::getWeatherService()`. Only it knows:
-  - The OpenWeather URL (`api.openweathermap.org/data/2.5/weather`).
-  - The request contract (`lat`, `lon`, `units=metric`, `appid`) and metric (Celsius).
-  - The response JSON field names and parsing.
+  - The OpenWeather URL (`api.openweathermap.org/data/2.5/forecast` with `cnt=1` — the Forecast API, which also provides the rain probability `pop`).
+  - The request contract (`lat`, `lon`, `units=metric`, `cnt=1`, `lang`, `appid`) and metric (Celsius).
+  - The response JSON field names and parsing (`list[0]` for the current interval, `city` for location/sunrise/sunset, `pop` for rain probability).
 - The provider checks connectivity through `networking::INetwork` (via `networking::getNetwork()`) and performs the request through `http::SecureClient`; it never calls `WiFi.*` or `HTTPClient` directly.
 - Missing/malformed JSON fields are handled safely (core fields are validated; optional fields default).
 
@@ -239,7 +241,8 @@ The header bar color encodes the state (blue = ready, orange = connecting/offlin
 
 | Condition group | Scene |
 |-----------------|-------|
-| Clear | Sun with rotating rays |
+| Clear (day) | Sun with rotating rays |
+| Clear (night) | Crescent moon + twinkling stars |
 | Clouds | Drifting cloud shapes |
 | Drizzle, Rain | Cloud + falling rain lines |
 | Thunderstorm | Cloud + blinking lightning bolt |
@@ -248,7 +251,9 @@ The header bar color encodes the state (blue = ready, orange = connecting/offlin
 | Squall, Tornado, Unknown | Clouds (fallback) |
 | (loading) | Spinning dots |
 
-Scenes are drawn with `fillCircle`/`fillEllipse`/`fillTriangle`/`drawLine`/`fillRect` through `IDisplay` — no image assets, no LovyanGFX types in the UI layer. Only the animation zone is redrawn each frame (static text renders only on state change), keeping the screen stable and the loop responsive.
+Day/night is derived from `WeatherData.timestamp` vs `sunrise`/`sunset`. Scenes are drawn with `fillCircle`/`fillEllipse`/`fillTriangle`/`drawLine`/`fillRect` through `IDisplay` — no image assets, no LovyanGFX types in the UI layer. Only the animation zone is redrawn each frame (static text renders only on state change), keeping the screen stable and the loop responsive.
+
+The metrics row shows `Humedad %`, `Viento km/h` (m/s × 3.6), and `Lluvia %` (rain probability from the Forecast API `pop`); wind direction is parsed but no longer displayed.
 
 ### Language (UI labels + descriptions)
 

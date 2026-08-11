@@ -15,8 +15,9 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
 | OpenWeather | **PASS** — HTTPS request, JSON parse, WeatherData populated (25.4 C in Mérida) |
 | Weather UI + refresh | **PASS** — production weather screen, 15-min periodic refresh, offline/failure states |
-| Weather animation | **PASS** — condition-based animated scenes (sun/clouds/rain/storm/snow/fog) |
+| Weather animation | **PASS** — condition-based animated scenes (sun/moon, clouds, rain, storm, snow, fog) |
 | Language | **PASS** — Spanish UI labels + localized descriptions (`lang=es`) |
+| Metrics | **PASS** — wind in km/h, rain probability %, metric units (C, hPa) |
 
 See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3](docs/sprints/003-wifi-foundation.md), [Sprint 4](docs/sprints/004-openweather-integration.md), [Sprint 5](docs/sprints/005-weather-display-ui.md), and [Sprint 6 — Weather Animation and Spanish UI](docs/sprints/006-weather-animation-i18n.md).
 

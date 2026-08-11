@@ -45,6 +45,11 @@ namespace weather
     Condition conditionId = Condition::Unknown; // typed group for the UI
     String conditionDescription; // localized description, e.g. "nubes dispersas"
 
+    int rainProbabilityPercent = 0; // probability of precipitation (0-100)
+
+    unsigned long sunrise = 0; // unix seconds (for day/night)
+    unsigned long sunset = 0;  // unix seconds
+
     unsigned long timestamp = 0; // unix seconds
   };
 

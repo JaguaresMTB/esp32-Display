@@ -58,6 +58,7 @@ namespace ui
     {
       None,
       Sun,
+      Moon,
       Clouds,
       Rain,
       Storm,
@@ -73,8 +74,9 @@ namespace ui
     Scene _scene = Scene::None;
     unsigned long _lastFrame = 0;
 
-    static Scene sceneFor(weather::Condition condition);
+    static Scene sceneFor(weather::Condition condition, bool isNight);
     static Stage stepStage(Stage overall, int step);
+    bool isNight(const weather::WeatherData& data) const;
 
     void drawHeader(const char* title, display::Color barColor);
     void drawWeatherBody(const weather::WeatherData& data);
@@ -91,6 +93,7 @@ namespace ui
     void clearZone();
     void drawScene(unsigned long now);
     void drawSun(unsigned long now);
+    void drawMoon(unsigned long now);
     void drawClouds(unsigned long now);
     void drawRain(unsigned long now);
     void drawStorm(unsigned long now);

@@ -12,6 +12,7 @@
 - [Sprint 6 — Weather Animation and Spanish UI](sprints/006-weather-animation-i18n.md) — completed sprint.
 - [Sprint 7 — Boot Checklist and Persistent Error Log](sprints/007-boot-checklist-error-log.md) — completed sprint.
 - [Sprint 8 — Wi-Fi Provisioning & Reconfiguration](sprints/008-wifi-provisioning.md) — completed sprint.
+- [Sprint 9 — Night Scene, Metric Units, and Rain Probability](sprints/009-night-scene-metrics-rain.md) — completed sprint.
 - [Sprint template](sprints/000-TEMPLATE.md) — template for future sprint documents.
 
 ## Convention: sprint documentation

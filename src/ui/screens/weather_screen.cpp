@@ -63,7 +63,7 @@ void WeatherScreen::render(const weather::WeatherData& data)
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Blue);
 
   _hasData = true;
-  _scene = sceneFor(data.conditionId);
+  _scene = sceneFor(data.conditionId, isNight(data));
 
   drawWeatherBody(data);
   drawFooter(String(label("Updated ", "Actualizado ")) + formatTime(data.timestamp),
@@ -76,7 +76,7 @@ void WeatherScreen::renderOffline(const weather::WeatherData& data)
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Orange);
 
   _hasData = true;
-  _scene = sceneFor(data.conditionId);
+  _scene = sceneFor(data.conditionId, isNight(data));
 
   drawWeatherBody(data);
   drawFooter(String(label("Wi-Fi offline  |  ", "Wi-Fi sin conexion  |  ")) +
@@ -90,7 +90,7 @@ void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Red);
 
   _hasData = true;
-  _scene = sceneFor(data.conditionId);
+  _scene = sceneFor(data.conditionId, isNight(data));
 
   drawWeatherBody(data);
   drawFooter(String(label("Update failed  |  ", "Error de actualizacion  |  ")) +
@@ -114,11 +114,12 @@ void WeatherScreen::updateAnimation(unsigned long now)
   drawScene(now);
 }
 
-WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition)
+WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition, bool isNight)
 {
   switch (condition)
   {
-    case weather::Condition::Clear: return Scene::Sun;
+    case weather::Condition::Clear:
+      return isNight ? Scene::Moon : Scene::Sun;
     case weather::Condition::Clouds: return Scene::Clouds;
     case weather::Condition::Drizzle:
     case weather::Condition::Rain: return Scene::Rain;
@@ -133,6 +134,15 @@ WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition)
     case weather::Condition::Ash: return Scene::Fog;
     default: return Scene::Clouds;
   }
+}
+
+bool WeatherScreen::isNight(const weather::WeatherData& data) const
+{
+  if (data.sunrise == 0 || data.sunset == 0)
+  {
+    return false; // unknown schedule -> treat as day
+  }
+  return (data.timestamp < data.sunrise) || (data.timestamp >= data.sunset);
 }
 
 void WeatherScreen::drawHeader(const char* title, display::Color barColor)
@@ -158,9 +168,12 @@ void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
 
   _display.drawLine(16, 224, _display.width() - 16, 224, display::Color::White);
 
-  drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 240);
-  drawTextAlignedMetric(label("Wind", "Viento"), String(data.windSpeed, 1) + " m/s", 266);
-  drawTextAlignedMetric(label("Direction", "Direccion"), String(data.windDirection) + " deg", 292);
+  drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 246);
+  {
+    String wind = String(data.windSpeed * 3.6f, 1) + " km/h";
+    drawTextAlignedMetric(label("Wind", "Viento"), wind, 266);
+  }
+  drawTextAlignedMetric(label("Rain", "Lluvia"), String(data.rainProbabilityPercent) + " %", 292);
 }
 
 void WeatherScreen::drawTextAlignedMetric(const char* label, const String& value, int32_t y)
@@ -263,6 +276,7 @@ void WeatherScreen::drawScene(unsigned long now)
   switch (_scene)
   {
     case Scene::Sun: drawSun(now); break;
+    case Scene::Moon: drawMoon(now); break;
     case Scene::Clouds: drawClouds(now); break;
     case Scene::Rain: drawRain(now); break;
     case Scene::Storm: drawStorm(now); break;
@@ -288,6 +302,28 @@ void WeatherScreen::drawSun(unsigned long now)
     int32_t x1 = cx + (int32_t)(cos(a) * 32.0);
     int32_t y1 = cy + (int32_t)(sin(a) * 32.0);
     _display.drawLine(x0, y0, x1, y1, display::Color::Orange);
+  }
+}
+
+void WeatherScreen::drawMoon(unsigned long now)
+{
+  int32_t cx = _display.width() / 2;
+  int32_t cy = kZoneY + kZoneH / 2;
+
+  // Crescent moon: full circle, then an offset background circle carves it.
+  _display.fillCircle(cx, cy, 16, display::Color::White);
+  _display.fillCircle(cx + 9, cy - 4, 14, display::Color::Black);
+
+  // A few twinkling stars.
+  static const int16_t starX[] = { 28, 214, 58, 184, 120 };
+  static const int16_t starY[] = { 50, 46, 66, 58, 52 };
+  for (int i = 0; i < 5; i++)
+  {
+    bool on = ((now / 700) + i) % 2 == 0;
+    if (on)
+    {
+      _display.fillCircle(starX[i], starY[i], 2, display::Color::White);
+    }
   }
 }
 
