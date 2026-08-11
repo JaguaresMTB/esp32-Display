@@ -17,6 +17,8 @@ namespace display
     Yellow  = 0xFFE0,
     Orange  = 0xFD20,
     Gray    = 0x8410,
+    SkyBlue = 0x5D1B,   // day background (RGB 90,160,220)
+    NightBlue = 0x114B, // night background / dark text (RGB 20,40,90)
   };
 
   enum class TextSize : uint8_t
@@ -61,6 +63,9 @@ namespace display
     // edge for Left, center for Center, right edge for Right). Vertically
     // centered at `y`.
     virtual void drawTextAligned(const char* text, int32_t x, int32_t y, TextSize size, TextAlign align) = 0;
+
+    // Set the color used by drawText/drawTextAligned (default White).
+    virtual void setTextColor(Color color) = 0;
 
     // Draw a single-pixel line.
     virtual void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, Color color) = 0;

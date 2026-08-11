@@ -82,7 +82,7 @@ namespace
 
     void drawText(const char* text, int32_t centerX, int32_t centerY, TextSize size) override
     {
-      tft.setTextColor(static_cast<uint16_t>(Color::White));
+      tft.setTextColor(static_cast<uint16_t>(_textColor));
       setTextDatum(TextAlign::Center);
       setFontAndSize(size);
       tft.drawString(text, centerX, centerY);
@@ -90,10 +90,15 @@ namespace
 
     void drawTextAligned(const char* text, int32_t x, int32_t y, TextSize size, TextAlign align) override
     {
-      tft.setTextColor(static_cast<uint16_t>(Color::White));
+      tft.setTextColor(static_cast<uint16_t>(_textColor));
       setTextDatum(align);
       setFontAndSize(size);
       tft.drawString(text, x, y);
+    }
+
+    void setTextColor(Color color) override
+    {
+      _textColor = color;
     }
 
     void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, Color color) override
@@ -138,8 +143,8 @@ namespace
           tft.setTextSize(2);
           break;
         case TextSize::XLarge:
-          tft.setFont(&fonts::Font4);
-          tft.setTextSize(2);
+          tft.setFont(&fonts::Font7);
+          tft.setTextSize(1);
           break;
       }
     }
@@ -153,6 +158,9 @@ namespace
         case TextAlign::Right:  tft.setTextDatum(middle_right);  break;
       }
     }
+
+  private:
+    Color _textColor = Color::White;
 
   public:
     int32_t width() const override { return tft.width(); }

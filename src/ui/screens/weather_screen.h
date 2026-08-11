@@ -74,6 +74,7 @@ namespace ui
     Language _language;
 
     bool _hasData = false;
+    bool _night = false;
     Scene _scene = Scene::None;
     unsigned long _lastFrame = 0;
 
@@ -81,6 +82,7 @@ namespace ui
     static Stage stepStage(Stage overall, int step);
     static const char* windCardinal(int degrees);
     bool isNight(const weather::WeatherData& data) const;
+    display::Color backgroundColor() const;
 
     void drawHeader(const char* title, display::Color barColor);
     void drawWeatherBody(const weather::WeatherData& data);

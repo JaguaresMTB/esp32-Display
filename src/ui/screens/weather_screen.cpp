@@ -20,6 +20,7 @@ void WeatherScreen::renderChecklist(Stage wifiStage, int wifiAttempt, Stage weat
                                     int weatherAttempt, const char* ip)
 {
   _display.clear();
+  _display.setTextColor(display::Color::White);
 
   _display.fillRect(0, 0, _display.width(), 30, display::Color::Blue);
   _display.drawText(label("Weather", "Clima"), _display.width() / 2, 15, display::TextSize::Medium);
@@ -50,6 +51,7 @@ void WeatherScreen::renderChecklist(Stage wifiStage, int wifiAttempt, Stage weat
 void WeatherScreen::renderProvisioning(const char* apSsid, const char* ip)
 {
   _display.clear();
+  _display.setTextColor(display::Color::White);
 
   drawHeader(label("Wi-Fi Setup", "Configuracion Wi-Fi"), display::Color::Orange);
   _display.drawText(label("Connect to:", "Conectate a:"), _display.width() / 2, 130,
@@ -64,12 +66,14 @@ void WeatherScreen::renderProvisioning(const char* apSsid, const char* ip)
 
 void WeatherScreen::render(const weather::WeatherData& data)
 {
-  _display.clear();
+  _night = isNight(data);
+  _display.fillScreen(backgroundColor());
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Blue);
 
   _hasData = true;
-  _scene = sceneFor(data.conditionId, isNight(data));
+  _scene = sceneFor(data.conditionId, _night);
 
+  _display.setTextColor(_night ? display::Color::White : display::Color::NightBlue);
   drawWeatherBody(data);
   drawFooter(String(label("Updated ", "Actualizado ")) + formatTime(data.timestamp),
              display::Color::Blue);
@@ -77,12 +81,14 @@ void WeatherScreen::render(const weather::WeatherData& data)
 
 void WeatherScreen::renderOffline(const weather::WeatherData& data)
 {
-  _display.clear();
+  _night = isNight(data);
+  _display.fillScreen(backgroundColor());
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Orange);
 
   _hasData = true;
-  _scene = sceneFor(data.conditionId, isNight(data));
+  _scene = sceneFor(data.conditionId, _night);
 
+  _display.setTextColor(_night ? display::Color::White : display::Color::NightBlue);
   drawWeatherBody(data);
   drawFooter(String(label("Wi-Fi offline  |  ", "Wi-Fi sin conexion  |  ")) +
                  formatTime(data.timestamp),
@@ -91,12 +97,14 @@ void WeatherScreen::renderOffline(const weather::WeatherData& data)
 
 void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
 {
-  _display.clear();
+  _night = isNight(data);
+  _display.fillScreen(backgroundColor());
   drawHeader(titleCase(data.locationName).c_str(), display::Color::Red);
 
   _hasData = true;
-  _scene = sceneFor(data.conditionId, isNight(data));
+  _scene = sceneFor(data.conditionId, _night);
 
+  _display.setTextColor(_night ? display::Color::White : display::Color::NightBlue);
   drawWeatherBody(data);
   drawFooter(String(label("Update failed  |  ", "Error de actualizacion  |  ")) +
                  formatTime(data.timestamp),
@@ -158,17 +166,31 @@ bool WeatherScreen::isNight(const weather::WeatherData& data) const
   return (data.timestamp < data.sunrise) || (data.timestamp >= data.sunset);
 }
 
+display::Color WeatherScreen::backgroundColor() const
+{
+  return _night ? display::Color::NightBlue : display::Color::SkyBlue;
+}
+
 void WeatherScreen::drawHeader(const char* title, display::Color barColor)
 {
   _display.fillRect(0, 0, _display.width(), 30, barColor);
+  _display.setTextColor(display::Color::White);
   _display.drawText(title, _display.width() / 2, 15, display::TextSize::Medium);
 }
 
 void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
 {
   {
-    String temp = String(data.temperatureC, 1) + " C";
-    _display.drawText(temp.c_str(), _display.width() / 2, 136, display::TextSize::XLarge);
+    // Font7 (7-segment) is numbers-only; draw the big number and a small "C"
+    // unit beside it, centered as a group.
+    const int digitW = 32; // Font7 digit/'.' width
+    const int gap = 10;
+    const int unitW = 14; // ~"C" width in the Metric size
+    String num = String(data.temperatureC, 1);
+    int numW = num.length() * digitW;
+    int groupLeft = _display.width() / 2 - (numW + gap + unitW) / 2;
+    _display.drawText(num.c_str(), groupLeft + numW / 2, 136, display::TextSize::XLarge);
+    _display.drawText("C", groupLeft + numW + gap + unitW / 2, 136, display::TextSize::Metric);
   }
 
   {
@@ -281,7 +303,7 @@ String WeatherScreen::attemptString(int attempt) const
 
 void WeatherScreen::clearZone()
 {
-  _display.fillRect(0, kZoneY, _display.width(), kZoneH, display::Color::Black);
+  _display.fillRect(0, kZoneY, _display.width(), kZoneH, backgroundColor());
 }
 
 void WeatherScreen::drawScene(unsigned long now)
@@ -325,7 +347,7 @@ void WeatherScreen::drawMoon(unsigned long now)
 
   // Crescent moon: full circle, then an offset background circle carves it.
   _display.fillCircle(cx, cy, 16, display::Color::White);
-  _display.fillCircle(cx + 9, cy - 4, 14, display::Color::Black);
+  _display.fillCircle(cx + 9, cy - 4, 14, backgroundColor());
 
   // A few twinkling stars.
   static const int16_t starX[] = { 28, 214, 58, 184, 120 };

@@ -63,8 +63,8 @@ Defined in `src/hardware/display/display.h` (`display::IDisplay`):
 
 Supporting types (driver-independent):
 
-- `display::Color` — 16-bit 565 color enum (`Red`, `Green`, `Blue`, `White`, `Black`, `Cyan`, `Magenta`, `Yellow`, `Orange`, `Gray`).
-- `display::TextSize` — `Small` (16 px), `Medium` (26 px), `Large` (52 px), `XLarge` (52 px) (maps to library fonts internally).
+- `display::Color` — 16-bit 565 color enum (`Red`, `Green`, `Blue`, `White`, `Black`, `Cyan`, `Magenta`, `Yellow`, `Orange`, `Gray`, `SkyBlue`, `NightBlue`).
+- `display::TextSize` — `Small` (16 px), `Metric` (20 px), `Medium` (26 px), `Large` (52 px), `XLarge` (48 px 7-segment `Font7`, used for the hero temperature).
 
 Future primitives (e.g. `drawBitmap(...)`, `drawLine(...)`) are added to `IDisplay` when the application needs them; the implementation adds the matching LovyanGFX call.
 
