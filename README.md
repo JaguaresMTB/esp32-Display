@@ -18,6 +18,7 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Weather animation | **PASS** — condition-based animated scenes (sun/moon, clouds, rain, storm, snow, fog) |
 | Language | **PASS** — Spanish UI labels + localized descriptions (`lang=es`) |
 | Metrics | **PASS** — wind in km/h with cardinal direction (e.g. `20.9 km/h NE`), rain probability %, metric units (C, hPa) |
+| Location | **PASS** — resolved automatically from the Wi-Fi network (GeoIP), cached per SSID, UTC offset applied |
 
 See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3](docs/sprints/003-wifi-foundation.md), [Sprint 4](docs/sprints/004-openweather-integration.md), [Sprint 5](docs/sprints/005-weather-display-ui.md), and [Sprint 6 — Weather Animation and Spanish UI](docs/sprints/006-weather-animation-i18n.md).
 
@@ -103,7 +104,7 @@ cp src/config/weather_credentials.example.h src/config/weather_credentials.h
 # WEATHER_LANG (es/en) and WEATHER_UI_LANG (0=English, 1=Spanish)
 ```
 
-`src/config/weather_credentials.h` is never committed and the API key is never logged. After Wi-Fi connects, the application performs one weather request and logs the result (temperature, humidity, pressure, wind, condition). The display shows an animated condition scene and periodic refreshes run every 15 minutes.
+`src/config/weather_credentials.h` is never committed and the API key is never logged. After Wi-Fi connects, the device resolves its **location automatically from the network** (GeoIP via the public IP, cached per SSID — see `docs/architecture.md`), then fetches weather for that location. The coordinates in `weather_credentials.h` are only the fallback when GeoIP is unavailable.
 
 ## Project structure
 
@@ -134,9 +135,12 @@ esp32-Display/
 │   │   ├── http.h                # HTTPS GET transport (http::SecureClient)
 │   │   └── http.cpp              # WiFiClientSecure + HTTPClient implementation
 │   ├── services/
-│   │   └── weather/
-│   │       ├── weather.h         # weather abstraction (IWeatherService, WeatherData)
-│   │       └── weather.cpp       # OpenWeatherProvider + JSON parsing
+│   │   ├── weather/
+│   │   │   ├── weather.h         # weather abstraction (IWeatherService, WeatherData)
+│   │   │   └── weather.cpp       # OpenWeatherProvider + JSON parsing
+│   │   └── location/
+│   │       ├── location.h        # location abstraction (ILocationService, Location)
+│   │       └── location.cpp      # GeoIP provider + per-SSID NVS cache
 │   ├── ui/
 │   │   └── screens/
 │   │       ├── weather_screen.h  # production weather screen (presentation only)

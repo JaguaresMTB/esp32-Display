@@ -213,6 +213,21 @@ struct WeatherData {
 - `Application::update()` performs bounded weather requests on an elapsed-time schedule (15 min after success, 5 min after failure; serial `w` forces one). It logs non-sensitive values and draws the weather screen through `ui::WeatherScreen`.
 - The request never blocks indefinitely: `http::SecureClient` has a bounded timeout (~10 s), failures return immediately with a logged reason, and there is no retry loop.
 
+## Location service (GeoIP)
+
+`src/services/location/location.{h,cpp}` provides `location::ILocationService`:
+
+| Member | Purpose |
+|--------|---------|
+| `bool begin()` | Open the per-SSID cache (NVS namespace `"loc"`) |
+| `bool resolve(Location&)` | Resolve the location for the currently connected network |
+
+- `Location { String name; float latitude, longitude; int32_t utcOffsetSeconds; }` — provider-independent.
+- Resolution: check the **per-SSID NVS cache** (instant) → on a miss, call **ipapi.co** (`https://ipapi.co/json/`) via `http::SecureClient`, parse `latitude`/`longitude`/`city`/`utc_offset`, and cache the result (small 6-slot ring).
+- The `utc_offset` parser accepts both `-06:00` and `-0600`.
+- `Application::ensureLocation()` runs before each weather fetch: on an SSID change it resolves the location and applies it via `IWeatherService::setLocation(...)` and `WeatherScreen::setTimezoneOffsetSeconds(...)`; the compile-time coordinates in `weather_credentials.h` remain the fallback when GeoIP is unavailable, and resolution retries on the next refresh.
+- GeoIP accuracy is city/region level (it geolocates the router's public IP) — sufficient for weather.
+
 ## UI layer (WeatherScreen)
 
 Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **presentation-only** component: it depends only on `display::IDisplay` and the provider-independent `weather::WeatherData`. It makes no HTTP requests, calls no WiFi APIs, parses no JSON, and knows nothing about OpenWeather or API keys.

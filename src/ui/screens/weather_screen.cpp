@@ -11,6 +11,11 @@ WeatherScreen::WeatherScreen(display::IDisplay& display, int32_t timezoneOffsetS
 {
 }
 
+void WeatherScreen::setTimezoneOffsetSeconds(int32_t offsetSeconds)
+{
+  _tzOffsetSeconds = offsetSeconds;
+}
+
 void WeatherScreen::renderChecklist(Stage wifiStage, int wifiAttempt, Stage weatherStage,
                                     int weatherAttempt, const char* ip)
 {

@@ -85,6 +85,10 @@ namespace weather
     // on success. Returns a meaningful error otherwise; reason is logged
     // internally. Never blocks indefinitely.
     virtual WeatherError getCurrentWeather(WeatherData& data) = 0;
+
+    // Set the request location at runtime (overrides the compile-time
+    // defaults). Called with the location resolved from the Wi-Fi network.
+    virtual void setLocation(float latitude, float longitude, const char* name) = 0;
   };
 
   // Factory: returns the singleton weather service instance.

@@ -37,6 +37,9 @@ namespace ui
     // Keep last valid data, indicate the last weather update failed.
     void renderUpdateFailed(const weather::WeatherData& data);
 
+    // Update the local timezone offset (seconds) used for the last-update time.
+    void setTimezoneOffsetSeconds(int32_t offsetSeconds);
+
     // No data yet — step-by-step boot checklist (Wi-Fi + weather sections)
     // with attempt numbers. No animation.
     void renderChecklist(Stage wifiStage, int wifiAttempt, Stage weatherStage,

@@ -126,14 +126,27 @@ namespace
 
   private:
     bool _configured = false;
+    bool _hasLocation = false;
+    float _lat = 0.0f;
+    float _lon = 0.0f;
+    String _name;
+
+    void setLocation(float latitude, float longitude, const char* name) override
+    {
+      _lat = latitude;
+      _lon = longitude;
+      _name = name;
+      _hasLocation = true;
+      logging::info(TAG, "location set: %s (%.4f, %.4f)", name, latitude, longitude);
+    }
 
     String buildUrl() const
     {
       String url = String(OPENWEATHER_BASE_URL);
       url += "?lat=";
-      url += String(WEATHER_LATITUDE, 6);
+      url += String(_hasLocation ? _lat : WEATHER_LATITUDE, 6);
       url += "&lon=";
-      url += String(WEATHER_LONGITUDE, 6);
+      url += String(_hasLocation ? _lon : WEATHER_LONGITUDE, 6);
       url += "&units=metric";
       url += "&cnt=1";
       if (WEATHER_LANG[0] != '\0')
@@ -197,7 +210,7 @@ namespace
         return WeatherError::MissingField;
       }
 
-      data.locationName = city["name"] | "?";
+      data.locationName = city["name"] | _name;
       data.latitude = city["coord"]["lat"] | 0.0f;
       data.longitude = city["coord"]["lon"] | 0.0f;
 

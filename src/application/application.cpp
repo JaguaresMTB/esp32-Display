@@ -27,8 +27,10 @@ namespace
 Application::Application(display::IDisplay& display,
                          diagnostics::DisplayTest& displayTest,
                          networking::INetwork& network,
-                         weather::IWeatherService& weather)
+                         weather::IWeatherService& weather,
+                         location::ILocationService& location)
   : _display(display), _displayTest(displayTest), _network(network), _weather(weather),
+    _location(location),
     _weatherScreen(display, WEATHER_TIMEZONE_OFFSET_HOURS * 3600,
                    WEATHER_UI_LANG ? ui::Language::Spanish : ui::Language::English)
 {
@@ -54,6 +56,7 @@ bool Application::begin()
 
   _network.begin();
   _weather.begin();
+  _location.begin();
 
   _weatherStage = ui::WeatherScreen::Stage::Pending;
   _weatherAttempt = 0;
@@ -89,6 +92,8 @@ void Application::update()
     if (connected && millis() >= _nextWeatherRefreshAt)
     {
       _nextWeatherRefreshAt = millis() + kWeatherRetryIntervalMs; // safety default
+
+      ensureLocation();
 
       if (!_hasWeatherData)
       {
@@ -189,6 +194,30 @@ void Application::forceRenderChecklist()
 {
   _lastUiState = UiState::None;
   renderWeatherState();
+}
+
+void Application::ensureLocation()
+{
+  String ssid = _network.ssid();
+  if (ssid.isEmpty() || ssid == _resolvedSsid)
+  {
+    return;
+  }
+
+  location::Location loc;
+  if (_location.resolve(loc))
+  {
+    _weather.setLocation(loc.latitude, loc.longitude, loc.name.c_str());
+    _weatherScreen.setTimezoneOffsetSeconds(loc.utcOffsetSeconds);
+    _resolvedSsid = ssid;
+    logging::info(TAG, "location applied: %s (%.4f, %.4f) utc=%ld s",
+                  loc.name.c_str(), loc.latitude, loc.longitude, (long)loc.utcOffsetSeconds);
+  }
+  else
+  {
+    // Keep the compile-time/default location; retried on the next refresh.
+    logging::info(TAG, "location resolve failed; using configured fallback");
+  }
 }
 
 void Application::handleBootButton()

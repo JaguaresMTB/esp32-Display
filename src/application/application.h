@@ -3,6 +3,7 @@
 #include "diagnostics/display_test.h"
 #include "hardware/display/display.h"
 #include "networking/network.h"
+#include "services/location/location.h"
 #include "services/weather/weather.h"
 #include "ui/screens/weather_screen.h"
 
@@ -17,7 +18,8 @@ namespace app
     Application(display::IDisplay& display,
                 diagnostics::DisplayTest& displayTest,
                 networking::INetwork& network,
-                weather::IWeatherService& weather);
+                weather::IWeatherService& weather,
+                location::ILocationService& location);
 
     bool begin();
     void update();
@@ -42,6 +44,7 @@ namespace app
     diagnostics::DisplayTest& _displayTest;
     networking::INetwork& _network;
     weather::IWeatherService& _weather;
+    location::ILocationService& _location;
     ui::WeatherScreen _weatherScreen;
 
     bool _hasWeatherData = false;
@@ -65,6 +68,9 @@ namespace app
     void renderWeatherState();
     void logWeather(const weather::WeatherData& data) const;
     void forceRenderChecklist();
+    void ensureLocation();
+
+    String _resolvedSsid;
 
     void handleBootButton();
     void renderProvisioningState();
