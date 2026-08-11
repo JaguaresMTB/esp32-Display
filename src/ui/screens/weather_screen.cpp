@@ -165,8 +165,8 @@ void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
 
 void WeatherScreen::drawTextAlignedMetric(const char* label, const String& value, int32_t y)
 {
-  _display.drawTextAligned(label, 12, y, display::TextSize::Medium, display::TextAlign::Left);
-  _display.drawTextAligned(value.c_str(), _display.width() - 12, y, display::TextSize::Medium,
+  _display.drawTextAligned(label, 12, y, display::TextSize::Metric, display::TextAlign::Left);
+  _display.drawTextAligned(value.c_str(), _display.width() - 12, y, display::TextSize::Metric,
                            display::TextAlign::Right);
 }
 

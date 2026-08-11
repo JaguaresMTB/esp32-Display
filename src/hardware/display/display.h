@@ -25,6 +25,7 @@ namespace display
     Medium = 2,
     Large = 3,
     XLarge = 4,
+    Metric = 5, // ~20 px (between Small and Medium)
   };
 
   enum class TextAlign : uint8_t

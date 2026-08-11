@@ -125,6 +125,10 @@ namespace
           tft.setFont(&fonts::Font2);
           tft.setTextSize(1);
           break;
+        case TextSize::Metric:
+          tft.setFont(&fonts::Font2);
+          tft.setTextSize(1.25f); // 8x16 * 1.25 = 10x20 px
+          break;
         case TextSize::Medium:
           tft.setFont(&fonts::Font4);
           tft.setTextSize(1);
