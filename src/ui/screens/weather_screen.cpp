@@ -277,7 +277,7 @@ void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
   drawTextAlignedMetric(label("Humidity", "Humedad"), String(data.humidityPercent) + " %", 246);
   {
     String wind = String(data.windSpeed * 3.6f, 1) + " km/h " + windCardinal(data.windDirection);
-    drawTextAlignedMetric(label("Wind", "Viento"), wind, 266);
+    drawTextAlignedMetric(label("Wind", "Viento"), wind, 269);
   }
   drawTextAlignedMetric(label("Rain", "Lluvia"), String(data.rainProbabilityPercent) + " %", 292);
 }
