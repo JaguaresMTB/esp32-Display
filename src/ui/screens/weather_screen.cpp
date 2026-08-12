@@ -509,8 +509,15 @@ String WeatherScreen::formatTime(unsigned long unixTime) const
   long secs = t % 86400L;
   int hh = (int)(secs / 3600);
   int mm = (int)((secs % 3600) / 60);
-  char buf[6];
-  snprintf(buf, sizeof(buf), "%02d:%02d", hh, mm);
+
+  int h12 = hh % 12;
+  if (h12 == 0)
+  {
+    h12 = 12;
+  }
+  const char* ap = (hh < 12) ? "am" : "pm";
+  char buf[9];
+  snprintf(buf, sizeof(buf), "%02d:%02d %s", h12, mm, ap);
   return String(buf);
 }
 

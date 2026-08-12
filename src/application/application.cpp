@@ -1,6 +1,7 @@
 #include "application.h"
 
 #include <Arduino.h>
+#include <time.h>
 
 #include "common/error_log.h"
 #include "common/logging.h"
@@ -153,13 +154,21 @@ void Application::fetchWeather()
   if (result == weather::WeatherError::Ok)
   {
     _weatherData = data;
+    // Show the real fetch time (NTP) in the "last update" footer; the API's
+    // observation timestamp only advances every 15 min. Fall back to the API
+    // timestamp if the NTP clock is not synced yet.
+    time_t now = time(nullptr);
+    if (now >= 1000000)
+    {
+      _weatherData.timestamp = (unsigned long)now;
+    }
     _hasWeatherData = true;
     _lastWeatherOk = true;
     _weatherStage = ui::WeatherScreen::Stage::Done;
     _nextWeatherRefreshAt = millis() + kWeatherRefreshIntervalMs;
     errorlog::record("weather_ok");
     logging::info("WEATHER", "request successful");
-    logWeather(data);
+    logWeather(_weatherData);
     logging::info("WEATHER", "next refresh in %lu s", kWeatherRefreshIntervalMs / 1000);
   }
   else

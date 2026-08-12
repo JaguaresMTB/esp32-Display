@@ -190,7 +190,7 @@ namespace
       data.temperatureC = current["temperature_2m"] | 0.0f;
       data.feelsLikeC = current["apparent_temperature"] | 0.0f;
       data.humidityPercent = current["relative_humidity_2m"] | 0;
-      data.pressureHpa = current["pressure_msl"] | 0;
+      data.pressureHpa = (int)(current["pressure_msl"] | 0.0f);
       data.windSpeed = current["wind_speed_10m"] | 0.0f; // m/s (wind_speed_unit=ms)
       data.windDirection = current["wind_direction_10m"] | 0;
 

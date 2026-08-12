@@ -53,3 +53,9 @@ Add a live current-time clock to the weather screen header (updating every minut
 - No new dependencies (SNTP is part of the ESP32 Arduino core).
 - The clock uses the resolved local timezone offset (GeoIP), falling back to the configured offset.
 - No hardware changes; display config (Sprint 1 baseline) untouched.
+
+## Follow-up (post-sprint 012)
+
+- **Footer time uses the real NTP fetch time** — the "Actualizado" footer previously showed Open-Meteo's observation timestamp, which only advances every 15 minutes (`current.interval = 900`), making the footer look frozen despite 5-min refreshes. Now `Application::fetchWeather()` records `time(NULL)` (NTP) on success (falling back to the API timestamp until NTP syncs), so the footer advances with every refresh.
+- **12-hour footer format** — `formatTime()` now outputs `hh:mm am/pm` (e.g., `Actualizado 04:18 pm`), matching the header clock.
+- **Pressure fix** — `pressure_msl` is read as a float (`| 0.0f`) before casting to int; previously parsed as 0.
