@@ -157,6 +157,21 @@ const char* WeatherScreen::windCardinal(int degrees)
   return points[index % 8];
 }
 
+const char* WeatherScreen::conditionText(weather::Condition condition) const
+{
+  switch (condition)
+  {
+    case weather::Condition::Clear:        return label("Clear sky", "Despejado");
+    case weather::Condition::Clouds:       return label("Cloudy", "Nublado");
+    case weather::Condition::Drizzle:      return label("Drizzle", "Llovizna");
+    case weather::Condition::Rain:         return label("Rain", "Lluvia");
+    case weather::Condition::Thunderstorm: return label("Thunderstorm", "Tormenta");
+    case weather::Condition::Snow:         return label("Snow", "Nieve");
+    case weather::Condition::Fog:          return label("Fog", "Niebla");
+    default:                               return label("Cloudy", "Nublado");
+  }
+}
+
 bool WeatherScreen::isNight(const weather::WeatherData& data) const
 {
   if (data.sunrise == 0 || data.sunset == 0)
@@ -198,7 +213,7 @@ void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)
     _display.drawText(feels.c_str(), _display.width() / 2, 180, display::TextSize::Medium);
   }
 
-  _display.drawText(titleCase(data.conditionDescription).c_str(), _display.width() / 2, 208,
+  _display.drawText(conditionText(data.conditionId), _display.width() / 2, 208,
                     display::TextSize::Bold);
 
   _display.drawLine(16, 224, _display.width() - 16, 224, display::Color::White);

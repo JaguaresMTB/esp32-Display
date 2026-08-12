@@ -7,15 +7,13 @@
 #include "networking/http.h"
 #include "networking/network.h"
 
-// Real credentials come from src/config/weather_credentials.h (gitignored).
-// Without that file the build still succeeds with an empty key.
+// Location fallback comes from src/config/weather_credentials.h (gitignored);
+// the build succeeds without it (coordinates default to 0 -> GeoIP normally
+// supplies the real location at runtime).
 #if __has_include("config/weather_credentials.h")
 #include "config/weather_credentials.h"
 #endif
 
-#ifndef OPENWEATHER_API_KEY
-#define OPENWEATHER_API_KEY ""
-#endif
 #ifndef WEATHER_LATITUDE
 #define WEATHER_LATITUDE 0.0f
 #endif
@@ -25,17 +23,13 @@
 #ifndef WEATHER_LOCATION_NAME
 #define WEATHER_LOCATION_NAME ""
 #endif
-#ifndef WEATHER_LANG
-#define WEATHER_LANG ""
-#endif
 
 namespace weather
 {
 namespace
 {
   const char* TAG = "WEATHER";
-  const char* CURRENT_WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
-  const char* FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
+  const char* OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/forecast";
 }
 
 const char* weatherErrorName(WeatherError error)
@@ -58,28 +52,46 @@ const char* weatherErrorName(WeatherError error)
 
 namespace
 {
-  class OpenWeatherProvider final : public IWeatherService
+  // WMO weather code -> provider-independent condition group.
+  Condition toCondition(int code)
+  {
+    if (code == 0)                return Condition::Clear;
+    if (code >= 1 && code <= 3)   return Condition::Clouds;
+    if (code == 45 || code == 48) return Condition::Fog;
+    if (code >= 51 && code <= 57) return Condition::Drizzle;
+    if (code >= 61 && code <= 67) return Condition::Rain;
+    if (code >= 71 && code <= 77) return Condition::Snow;
+    if (code >= 80 && code <= 82) return Condition::Rain;
+    if (code == 85 || code == 86) return Condition::Snow;
+    if (code >= 95 && code <= 99) return Condition::Thunderstorm;
+    return Condition::Unknown;
+  }
+
+  const char* codeDescription(int code)
+  {
+    if (code == 0)                return "clear sky";
+    if (code >= 1 && code <= 3)   return "cloudy";
+    if (code == 45 || code == 48) return "fog";
+    if (code >= 51 && code <= 57) return "drizzle";
+    if (code >= 61 && code <= 67) return "rain";
+    if (code >= 71 && code <= 77) return "snow";
+    if (code >= 80 && code <= 82) return "rain showers";
+    if (code == 85 || code == 86) return "snow showers";
+    if (code >= 95 && code <= 99) return "thunderstorm";
+    return "unknown";
+  }
+
+  class OpenMeteoProvider final : public IWeatherService
   {
   public:
     bool begin() override
     {
-      logging::info(TAG, "initialization");
-      _configured = OPENWEATHER_API_KEY[0] != '\0';
-      if (!_configured)
-      {
-        logging::info(TAG, "no API key configured; weather disabled");
-      }
+      logging::info(TAG, "initialization (Open-Meteo)");
       return true;
     }
 
     WeatherError getCurrentWeather(WeatherData& data) override
     {
-      if (!_configured)
-      {
-        logging::info(TAG, "request aborted: not configured");
-        return WeatherError::NotConfigured;
-      }
-
       networking::INetwork& network = networking::getNetwork();
       if (!network.isConnected())
       {
@@ -87,43 +99,20 @@ namespace
         return WeatherError::NotConnected;
       }
 
-      String currentUrl = buildUrl(CURRENT_WEATHER_URL, false);
-      String forecastUrl = buildUrl(FORECAST_URL, true);
-
+      String url = buildUrl();
       logging::info(TAG, "requesting current weather");
 
-      // Current observed conditions (retry once on transient failure).
       http::Response response;
-      WeatherError err = fetch(currentUrl, response, 2);
+      WeatherError err = fetch(url, response, 2);
       if (err != WeatherError::Ok)
       {
         return err;
       }
 
-      err = parse(response.body, data);
-      if (err != WeatherError::Ok)
-      {
-        return err;
-      }
-
-      // Rain probability comes from the forecast API; optional (not a hard
-      // failure if the forecast call fails).
-      http::Response forecast;
-      if (fetch(forecastUrl, forecast, 1) == WeatherError::Ok)
-      {
-        data.rainProbabilityPercent = parseRainProbability(forecast.body);
-      }
-      else
-      {
-        logging::info(TAG, "rain probability unavailable; using 0");
-        data.rainProbabilityPercent = 0;
-      }
-
-      return WeatherError::Ok;
+      return parse(response.body, data);
     }
 
   private:
-    bool _configured = false;
     bool _hasLocation = false;
     float _lat = 0.0f;
     float _lon = 0.0f;
@@ -156,11 +145,6 @@ namespace
         if (response.statusCode != 200)
         {
           logging::info(TAG, "request failed: HTTP status %d", response.statusCode);
-          if (response.statusCode == 401)
-          {
-            logging::info(TAG, "invalid API key (401)");
-            return WeatherError::ApiError;
-          }
           return WeatherError::BadStatus;
         }
         return WeatherError::Ok;
@@ -168,46 +152,21 @@ namespace
       return WeatherError::HttpError;
     }
 
-    String buildUrl(const char* base, bool forecast) const
+    String buildUrl() const
     {
-      String url = String(base);
-      url += "?lat=";
+      String url = String(OPEN_METEO_BASE_URL);
+      url += "?latitude=";
       url += String(_hasLocation ? _lat : WEATHER_LATITUDE, 6);
-      url += "&lon=";
+      url += "&longitude=";
       url += String(_hasLocation ? _lon : WEATHER_LONGITUDE, 6);
-      url += "&units=metric";
-      if (forecast)
-      {
-        url += "&cnt=1";
-      }
-      if (WEATHER_LANG[0] != '\0')
-      {
-        url += "&lang=";
-        url += WEATHER_LANG;
-      }
-      url += "&appid=";
-      url += OPENWEATHER_API_KEY;
+      url += "&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl";
+      url += "&hourly=precipitation_probability";
+      url += "&daily=sunrise,sunset";
+      url += "&wind_speed_unit=ms";
+      url += "&timeformat=unixtime";
+      url += "&timezone=auto";
+      url += "&forecast_days=1";
       return url;
-    }
-
-    static Condition toCondition(const String& group)
-    {
-      if (group == "Clear")        return Condition::Clear;
-      if (group == "Clouds")       return Condition::Clouds;
-      if (group == "Drizzle")      return Condition::Drizzle;
-      if (group == "Rain")         return Condition::Rain;
-      if (group == "Thunderstorm") return Condition::Thunderstorm;
-      if (group == "Snow")         return Condition::Snow;
-      if (group == "Mist")         return Condition::Mist;
-      if (group == "Fog")          return Condition::Fog;
-      if (group == "Haze")         return Condition::Haze;
-      if (group == "Smoke")        return Condition::Smoke;
-      if (group == "Dust")         return Condition::Dust;
-      if (group == "Sand")         return Condition::Sand;
-      if (group == "Ash")          return Condition::Ash;
-      if (group == "Squall")       return Condition::Squall;
-      if (group == "Tornado")      return Condition::Tornado;
-      return Condition::Unknown;
     }
 
     WeatherError parse(const String& body, WeatherData& data) const
@@ -220,64 +179,79 @@ namespace
         return WeatherError::InvalidJson;
       }
 
-      // If the API returned an error envelope, it carries "cod"/"message".
-      if (doc["cod"].is<int>() && (int)doc["cod"] != 200)
-      {
-        logging::info(TAG, "API error: cod=%d message=%s",
-                      (int)doc["cod"], (const char*)(doc["message"] | ""));
-        return WeatherError::ApiError;
-      }
-
-      JsonObject main = doc["main"];
-      JsonObject wind = doc["wind"];
-
-      if (!main["temp"].is<float>() || !main["feels_like"].is<float>() ||
-          !main["humidity"].is<int>() || !doc["name"].is<const char*>())
+      JsonObject current = doc["current"];
+      if (!current["temperature_2m"].is<float>() || !current["relative_humidity_2m"].is<int>() ||
+          !current["weather_code"].is<int>())
       {
         logging::info(TAG, "parse failed: missing required field(s)");
         return WeatherError::MissingField;
       }
 
-      data.locationName = doc["name"] | _name;
-      data.latitude = doc["coord"]["lat"] | 0.0f;
-      data.longitude = doc["coord"]["lon"] | 0.0f;
+      data.temperatureC = current["temperature_2m"] | 0.0f;
+      data.feelsLikeC = current["apparent_temperature"] | 0.0f;
+      data.humidityPercent = current["relative_humidity_2m"] | 0;
+      data.pressureHpa = current["pressure_msl"] | 0;
+      data.windSpeed = current["wind_speed_10m"] | 0.0f; // m/s (wind_speed_unit=ms)
+      data.windDirection = current["wind_direction_10m"] | 0;
 
-      data.temperatureC = main["temp"] | 0.0f;
-      data.feelsLikeC = main["feels_like"] | 0.0f;
-      data.humidityPercent = main["humidity"] | 0;
-      data.pressureHpa = main["pressure"] | 0;
+      int code = current["weather_code"] | 0;
+      data.condition = codeDescription(code);
+      data.conditionId = toCondition(code);
+      data.conditionDescription = codeDescription(code);
 
-      data.windSpeed = wind["speed"] | 0.0f;
-      data.windDirection = wind["deg"] | 0;
+      data.timestamp = current["time"] | 0UL; // observation time (unix, ~now)
+      data.sunrise = doc["daily"]["sunrise"][0] | 0UL;
+      data.sunset = doc["daily"]["sunset"][0] | 0UL;
 
-      data.condition = doc["weather"][0]["main"] | "";
-      data.conditionId = toCondition(data.condition);
-      data.conditionDescription = doc["weather"][0]["description"] | "";
+      data.rainProbabilityPercent = currentHourRainProbability(doc);
 
-      data.sunrise = doc["sys"]["sunrise"] | 0UL;
-      data.sunset = doc["sys"]["sunset"] | 0UL;
-      data.timestamp = doc["dt"] | 0UL; // observation time (~now)
+      data.locationName = _name;
+      if (data.locationName.length() == 0)
+      {
+        data.locationName = WEATHER_LOCATION_NAME;
+      }
+      data.latitude = _hasLocation ? _lat : WEATHER_LATITUDE;
+      data.longitude = _hasLocation ? _lon : WEATHER_LONGITUDE;
 
       return WeatherError::Ok;
     }
 
-    int parseRainProbability(const String& body) const
+    // The hourly array starts at local midnight; pick the slot nearest the
+    // current observation time for the current-hour rain probability.
+    int currentHourRainProbability(const JsonDocument& doc) const
     {
-      JsonDocument doc;
-      DeserializationError err = deserializeJson(doc, body);
-      if (err)
+      JsonArrayConst times = doc["hourly"]["time"].as<JsonArrayConst>();
+      JsonArrayConst probs = doc["hourly"]["precipitation_probability"].as<JsonArrayConst>();
+      if (times.isNull() || probs.isNull())
       {
         return 0;
       }
-      // pop is 0..1 -> percent.
-      return (int)((doc["list"][0]["pop"] | 0.0f) * 100.0f + 0.5f);
+      unsigned long now = doc["current"]["time"] | 0UL;
+      int best = -1;
+      unsigned long bestDiff = 0xFFFFFFFFUL;
+      int n = times.size();
+      for (int i = 0; i < n; i++)
+      {
+        unsigned long t = times[i] | 0UL;
+        unsigned long diff = (t > now) ? (t - now) : (now - t);
+        if (diff < bestDiff)
+        {
+          bestDiff = diff;
+          best = i;
+        }
+      }
+      if (best < 0 || best >= probs.size())
+      {
+        return 0;
+      }
+      return probs[best] | 0;
     }
   };
 }
 
 IWeatherService& getWeatherService()
 {
-  static OpenWeatherProvider instance;
+  static OpenMeteoProvider instance;
   return instance;
 }
 }

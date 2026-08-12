@@ -13,7 +13,7 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Display rendering (visual) | **PASS** — color cycle and text confirmed on screen |
 | Firmware architecture | **PASS** — layered: main -> application -> display/network/weather abstractions |
 | Wi-Fi connection | **PASS** — connects to HouseMesh (192.168.68.114), auto-reconnects |
-| OpenWeather | **PASS** — HTTPS request, JSON parse, WeatherData populated (25.4 C in Mérida) |
+| Open-Meteo | **PASS** — current weather + rain probability, no API key (WeatherData populated in Mérida) |
 | Weather UI + refresh | **PASS** — production weather screen, 5-min periodic refresh, offline/failure states |
 | Weather animation | **PASS** — condition-based animated scenes (sun/moon, clouds, rain, storm, snow, fog) |
 | Language | **PASS** — Spanish UI labels + localized descriptions (`lang=es`) |
@@ -94,17 +94,17 @@ Wi-Fi is configured **on the device** — no computer or reflash needed.
 
 > A temporary Wi-Fi outage does **not** erase your credentials or enter setup mode automatically — the device retries/reconnects on its own.
 
-### OpenWeather setup
+### Weather setup
 
-OpenWeather API key + location are provided via a local, git-ignored file:
+The device fetches weather from **Open-Meteo** — **no API key required**. Location + UI language are provided via a local, git-ignored file (only needed to change the fallback location):
 
 ```sh
 cp src/config/weather_credentials.example.h src/config/weather_credentials.h
-# edit src/config/weather_credentials.h -> set OPENWEATHER_API_KEY, coordinates,
-# WEATHER_LANG (es/en) and WEATHER_UI_LANG (0=English, 1=Spanish)
+# edit src/config/weather_credentials.h -> set coordinates and
+# WEATHER_UI_LANG (0=English, 1=Spanish)
 ```
 
-`src/config/weather_credentials.h` is never committed and the API key is never logged. After Wi-Fi connects, the device resolves its **location automatically from the network** (GeoIP via the public IP, cached per SSID — see `docs/architecture.md`), then fetches weather for that location. The coordinates in `weather_credentials.h` are only the fallback when GeoIP is unavailable.
+After Wi-Fi connects, the device resolves its **location automatically from the network** (GeoIP via the public IP, cached per SSID — see `docs/architecture.md`), then fetches weather for that location. The coordinates in `weather_credentials.h` are only the fallback when GeoIP is unavailable. (`OPENWEATHER_API_KEY`/`WEATHER_LANG` in that file are legacy and unused.)
 
 ## Project structure
 
@@ -118,8 +118,8 @@ esp32-Display/
 │   │   ├── pins.h                # GPIO mapping + display params (single source of truth)
 │   │   ├── wifi_credentials.example.h  # LEGACY (superseded by provisioning)
 │   │   ├── wifi_credentials.h    # legacy compile-time creds (LOCAL, gitignored, unused)
-│   │   ├── weather_credentials.example.h # OpenWeather key + location template (tracked)
-│   │   └── weather_credentials.h # real key + coordinates (LOCAL, gitignored)
+│   │   ├── weather_credentials.example.h # location + UI language template (tracked)
+│   │   └── weather_credentials.h # location + UI language (LOCAL, gitignored)
 │   ├── common/
 │   │   ├── logging.h             # serial logging convention
 │   │   └── error_log.h/.cpp      # persistent boot/error log (NVS)
@@ -137,7 +137,7 @@ esp32-Display/
 │   ├── services/
 │   │   ├── weather/
 │   │   │   ├── weather.h         # weather abstraction (IWeatherService, WeatherData)
-│   │   │   └── weather.cpp       # OpenWeatherProvider + JSON parsing
+│   │   │       └── weather.cpp       # Open-Meteo provider + JSON parsing
 │   │   └── location/
 │   │       ├── location.h        # location abstraction (ILocationService, Location)
 │   │       └── location.cpp      # GeoIP provider + per-SSID NVS cache

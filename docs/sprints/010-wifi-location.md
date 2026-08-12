@@ -78,3 +78,14 @@ Application
 - **7-segment temperature** — the hero temperature now uses `Font7` (native 48 px, crisp) rendered as the big number plus a small `C` unit beside it.
 - **Condition line bold** — the condition description uses `TextSize::Bold` (`FreeSansBold12pt`, ~16 px) so long descriptions fit and stand out.
 - **Current + forecast weather** — the provider now uses the **Current Weather API** for the observed conditions (matching other apps, and `dt` is the observation time so "Actualizado HH:MM" is correct) plus a Forecast call **only for the rain probability** (`pop`). Two requests per refresh (~192/day, within the free tier).
+
+## Follow-up (Open-Meteo provider)
+
+The weather provider was switched from OpenWeather to **Open-Meteo**:
+- **No API key** and a single request per refresh (`api.open-meteo.com/v1/forecast`) returning current conditions, hourly rain probability, and daily sunrise/sunset (with `wind_speed_unit=ms`, `timeformat=unixtime`, `timezone=auto`).
+- WMO **weather codes mapped** to `weather::Condition`; the on-screen description is now short localized text derived in the UI from `conditionId` (Despejado/Nublado/Llovizna/Lluvia/Nieve/Niebla/Tormenta).
+- Rain probability comes from the **current hour's** hourly slot (matched by timestamp).
+- `locationName` comes from the GeoIP location (Open-Meteo has no city name).
+- `OPENWEATHER_API_KEY` / `WEATHER_LANG` config are now legacy/unused.
+- One call every 5 min = 288/day (Open-Meteo free tier allows 10,000/day).
+- Note: values may differ slightly between providers (Open-Meteo vs OpenWeather vs other apps) — normal across data sources.

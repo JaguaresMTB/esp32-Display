@@ -185,13 +185,16 @@ struct WeatherData {
 
 ### OpenWeatherProvider
 
-- Concrete implementation `OpenWeatherProvider` is hidden in `weather.cpp` and exposed through `weather::getWeatherService()`. Only it knows:
-  - Two OpenWeather endpoints: the **Current Weather API** (`/data/2.5/weather`) for the observed conditions (temp, wind, humidity, condition, sunrise/sunset, observation time), and the **Forecast API** (`/data/2.5/forecast?cnt=1`) called once per refresh **only for the rain probability** (`pop`).
-  - The request contract (`lat`, `lon`, `units=metric`, `lang`, `appid`) and metric (Celsius).
-  - The response JSON field names and parsing (`main`/`wind`/`weather[0]`/`sys`/`name`/`dt` for current; `list[0].pop` for rain probability).
-- The provider checks connectivity through `networking::INetwork` (via `networking::getNetwork()`) and performs the requests through `http::SecureClient`; it never calls `WiFi.*` or `HTTPClient` directly.
-- Missing/malformed JSON fields are handled safely (core fields are validated; optional fields default). A failure of the rain-probability call degrades gracefully (probability = 0), while the current-conditions call is authoritative.
-- `WeatherData.timestamp` is the current-weather **observation time** (`dt`), so the "last update" time and day/night reflect the actual local time.
+- Concrete implementation `OpenMeteoProvider` is hidden in `weather.cpp` and exposed through `weather::getWeatherService()`. Only it knows:
+  - The **Open-Meteo** endpoint (`api.open-meteo.com/v1/forecast`) — one request per refresh returning current conditions, hourly rain probability, and daily sunrise/sunset (no API key required).
+  - The request contract (`latitude`, `longitude`, `current=...`, `hourly=precipitation_probability`, `daily=sunrise,sunset`, `wind_speed_unit=ms`, `timeformat=unixtime`, `timezone=auto`, `forecast_days=1`).
+  - The response JSON parsing: `current.*` for observed conditions, `current.time` (unix, ~now) as the timestamp, `hourly.precipitation_probability` matched to the current hour for the rain probability, `daily.sunrise[0]/sunset[0]` (unix) for day/night.
+  - The **WMO weather-code mapping** to `weather::Condition` (`0` Clear, `1–3` Clouds, `45/48` Fog, `51–57` Drizzle, `61–67`/`80–82` Rain, `71–77`/`85–86` Snow, `95–99` Thunderstorm).
+  - Open-Meteo returns no city name — `locationName` comes from the GeoIP location (`setLocation`), falling back to the configured name.
+- The provider checks connectivity through `networking::INetwork` (via `networking::getNetwork()`) and performs the request through `http::SecureClient`; it never calls `WiFi.*` or `HTTPClient` directly.
+- Missing/malformed JSON fields are handled safely (core fields are validated; optional fields default).
+- The condition description text is derived locally in the UI from `conditionId` (short localized text), since Open-Meteo only provides numeric codes.
+- `WeatherData.timestamp` is the observation time (unix), so the "last update" time and day/night reflect the actual local time.
 
 ### HTTP/HTTPS responsibility
 

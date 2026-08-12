@@ -81,6 +81,7 @@ namespace ui
     static Scene sceneFor(weather::Condition condition, bool isNight);
     static Stage stepStage(Stage overall, int step);
     static const char* windCardinal(int degrees);
+    const char* conditionText(weather::Condition condition) const;
     bool isNight(const weather::WeatherData& data) const;
     display::Color backgroundColor() const;
 
