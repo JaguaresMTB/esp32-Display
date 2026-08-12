@@ -20,7 +20,7 @@ Hardware validation and development project for an **ESP32-C3 Super Mini** drivi
 | Metrics | **PASS** — wind in km/h with cardinal direction (e.g. `20.9 km/h NE`), rain probability %, metric units (C, hPa) |
 | Location | **PASS** — resolved automatically from the Wi-Fi network (GeoIP), cached per SSID, UTC offset applied |
 
-See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3](docs/sprints/003-wifi-foundation.md), [Sprint 4](docs/sprints/004-openweather-integration.md), [Sprint 5](docs/sprints/005-weather-display-ui.md), [Sprint 6](docs/sprints/006-weather-animation-i18n.md), [Sprint 7](docs/sprints/007-boot-checklist-error-log.md), [Sprint 8](docs/sprints/008-wifi-provisioning.md), [Sprint 9](docs/sprints/009-night-scene-metrics-rain.md), [Sprint 10](docs/sprints/010-wifi-location.md), and [Sprint 11 — Open-Meteo Weather Provider](docs/sprints/011-open-meteo-provider.md).
+See [Sprint 1](docs/sprints/001-hardware-validation.md), [Sprint 2](docs/sprints/002-firmware-architecture-foundation.md), [Sprint 3](docs/sprints/003-wifi-foundation.md), [Sprint 4](docs/sprints/004-openweather-integration.md), [Sprint 5](docs/sprints/005-weather-display-ui.md), [Sprint 6](docs/sprints/006-weather-animation-i18n.md), [Sprint 7](docs/sprints/007-boot-checklist-error-log.md), [Sprint 8](docs/sprints/008-wifi-provisioning.md), [Sprint 9](docs/sprints/009-night-scene-metrics-rain.md), [Sprint 10](docs/sprints/010-wifi-location.md), [Sprint 11 — Open-Meteo Weather Provider](docs/sprints/011-open-meteo-provider.md), and [Sprint 12 — Header Clock and Layout](docs/sprints/012-header-clock-layout.md).
 
 ## Hardware
 

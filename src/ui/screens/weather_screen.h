@@ -52,6 +52,10 @@ namespace ui
     // zone. Does nothing while no weather data exists (checklist is static).
     void updateAnimation(unsigned long now);
 
+    // Called every loop; redraws the header clock when the minute changes
+    // (only while weather data is displayed).
+    void updateClock();
+
   private:
     static constexpr int32_t kZoneY = 36;
     static constexpr int32_t kZoneH = 74;
@@ -77,6 +81,8 @@ namespace ui
     bool _night = false;
     Scene _scene = Scene::None;
     unsigned long _lastFrame = 0;
+    int _lastClockMinute = -1;
+    display::Color _headerColor = display::Color::Blue;
 
     static Scene sceneFor(weather::Condition condition, bool isNight);
     static Stage stepStage(Stage overall, int step);
@@ -93,6 +99,7 @@ namespace ui
     void drawChecklistSectionTitle(const char* title, int attempt, int32_t y);
     void drawChecklistRow(const char* label, Stage stage, int attempt, int32_t y);
     void drawCheckMark(int32_t x, int32_t y);
+    void drawLocationPin(int32_t cx, int32_t cy);
 
     const char* label(const char* en, const char* es) const;
     String attemptString(int attempt) const;

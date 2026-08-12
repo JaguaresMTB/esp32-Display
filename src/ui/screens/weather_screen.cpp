@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <time.h>
 
 namespace ui
 {
@@ -68,7 +69,8 @@ void WeatherScreen::render(const weather::WeatherData& data)
 {
   _night = isNight(data);
   _display.fillScreen(backgroundColor());
-  drawHeader(titleCase(data.locationName).c_str(), display::Color::Blue);
+  _headerColor = display::Color::Blue;
+  drawHeader(titleCase(data.locationName).c_str(), _headerColor);
 
   _hasData = true;
   _scene = sceneFor(data.conditionId, _night);
@@ -83,7 +85,8 @@ void WeatherScreen::renderOffline(const weather::WeatherData& data)
 {
   _night = isNight(data);
   _display.fillScreen(backgroundColor());
-  drawHeader(titleCase(data.locationName).c_str(), display::Color::Orange);
+  _headerColor = display::Color::Orange;
+  drawHeader(titleCase(data.locationName).c_str(), _headerColor);
 
   _hasData = true;
   _scene = sceneFor(data.conditionId, _night);
@@ -99,7 +102,8 @@ void WeatherScreen::renderUpdateFailed(const weather::WeatherData& data)
 {
   _night = isNight(data);
   _display.fillScreen(backgroundColor());
-  drawHeader(titleCase(data.locationName).c_str(), display::Color::Red);
+  _headerColor = display::Color::Red;
+  drawHeader(titleCase(data.locationName).c_str(), _headerColor);
 
   _hasData = true;
   _scene = sceneFor(data.conditionId, _night);
@@ -125,6 +129,51 @@ void WeatherScreen::updateAnimation(unsigned long now)
 
   clearZone();
   drawScene(now);
+}
+
+void WeatherScreen::updateClock()
+{
+  if (!_hasData)
+  {
+    return;
+  }
+
+  time_t now = time(nullptr);
+  if (now < 1000000)
+  {
+    return; // NTP not synced yet
+  }
+
+  long t = (long)now + _tzOffsetSeconds;
+  if (t < 0)
+  {
+    t += 86400L;
+  }
+  long secs = t % 86400L;
+  int hh = (int)(secs / 3600);
+  int mm = (int)((secs % 3600) / 60);
+
+  int minute = hh * 60 + mm;
+  if (minute == _lastClockMinute)
+  {
+    return;
+  }
+  _lastClockMinute = minute;
+
+  int h12 = hh % 12;
+  if (h12 == 0)
+  {
+    h12 = 12;
+  }
+  const char* ap = (hh < 12) ? "am" : "pm";
+  char buf[9];
+  snprintf(buf, sizeof(buf), "%02d:%02d %s", h12, mm, ap);
+
+  // Redraw only the top-right region of the header bar.
+  _display.fillRect(_display.width() - 84, 0, 84, 30, _headerColor);
+  _display.setTextColor(display::Color::White);
+  _display.drawTextAligned(buf, _display.width() - 8, 15, display::TextSize::Metric,
+                           display::TextAlign::Right);
 }
 
 WeatherScreen::Scene WeatherScreen::sceneFor(weather::Condition condition, bool isNight)
@@ -190,7 +239,14 @@ void WeatherScreen::drawHeader(const char* title, display::Color barColor)
 {
   _display.fillRect(0, 0, _display.width(), 30, barColor);
   _display.setTextColor(display::Color::White);
-  _display.drawText(title, _display.width() / 2, 15, display::TextSize::Medium);
+  drawLocationPin(14, 17);
+  _display.drawTextAligned(title, 27, 17, display::TextSize::Medium, display::TextAlign::Left);
+}
+
+void WeatherScreen::drawLocationPin(int32_t cx, int32_t cy)
+{
+  _display.fillCircle(cx, cy - 4, 4, display::Color::White);
+  _display.fillTriangle(cx - 3, cy - 1, cx + 3, cy - 1, cx, cy + 5, display::Color::White);
 }
 
 void WeatherScreen::drawWeatherBody(const weather::WeatherData& data)

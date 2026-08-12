@@ -15,6 +15,7 @@
 - [Sprint 9 — Night Scene, Metric Units, and Rain Probability](sprints/009-night-scene-metrics-rain.md) — completed sprint.
 - [Sprint 10 — Location from Wi-Fi (GeoIP)](sprints/010-wifi-location.md) — completed sprint.
 - [Sprint 11 — Open-Meteo Weather Provider](sprints/011-open-meteo-provider.md) — completed sprint.
+- [Sprint 12 — Header Clock and Layout](sprints/012-header-clock-layout.md) — completed sprint.
 - [Sprint template](sprints/000-TEMPLATE.md) — template for future sprint documents.
 
 ## Convention: sprint documentation

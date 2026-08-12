@@ -245,14 +245,14 @@ Defined in `src/ui/screens/weather_screen.h` (`ui::WeatherScreen`). It is a **pr
 | `updateAnimation(now)` | Called every loop; throttled (~12 fps); redraws the animation zone (only when data exists) |
 
 Screen layout (240x320 portrait):
-- Colored header bar with the location name (accent-folded to ASCII, title case).
+- Colored header bar with a **location-pin icon + location name** (accent-folded to ASCII, title case) at the top-left and a **live clock** (`hh:mm am/pm`, NTP-synced, updates every minute) at the top-right.
 - **Animation zone** (y 36-110) — condition-based scene, or spinner while loading.
 - Hero temperature (XLarge), feels-like, condition.
 - Separator line.
 - Metrics (humidity / wind with cardinal direction / rain probability) left/right aligned.
 - Footer with last-update local time (`HH:MM`), or the offline/update-failed indicator.
 
-The header bar color encodes the state (blue = ready, orange = connecting/offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only. Body text uses `Medium` (26 px) for readability; the footer is `Small`.
+The header bar color encodes the state (blue = ready, orange = connecting/offline, red = update failed); all text stays white. The location name is transliterated (e.g. `Mérida` → `Merida`) because the built-in fonts are ASCII-only. Body text uses `Medium` (26 px) for readability; the footer is `Small`. The clock is kept accurate via **NTP** (`configTime(offsetSeconds, 0, "pool.ntp.org")`, called after the location/timezone is resolved); `WeatherScreen::updateClock()` redraws only the top-right header region on minute changes.
 
 ### Weather animation
 

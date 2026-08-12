@@ -112,6 +112,7 @@ void Application::update()
 
     renderWeatherState();
     _weatherScreen.updateAnimation(millis());
+    _weatherScreen.updateClock();
   }
 
   if (Serial.available())
@@ -210,12 +211,14 @@ void Application::ensureLocation()
     _weather.setLocation(loc.latitude, loc.longitude, loc.name.c_str());
     _weatherScreen.setTimezoneOffsetSeconds(loc.utcOffsetSeconds);
     _resolvedSsid = ssid;
+    configTime(loc.utcOffsetSeconds, 0, "pool.ntp.org");
     logging::info(TAG, "location applied: %s (%.4f, %.4f) utc=%ld s",
                   loc.name.c_str(), loc.latitude, loc.longitude, (long)loc.utcOffsetSeconds);
   }
   else
   {
     // Keep the compile-time/default location; retried on the next refresh.
+    configTime(WEATHER_TIMEZONE_OFFSET_HOURS * 3600, 0, "pool.ntp.org");
     logging::info(TAG, "location resolve failed; using configured fallback");
   }
 }
